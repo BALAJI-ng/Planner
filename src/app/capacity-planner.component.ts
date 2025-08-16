@@ -1,11 +1,3 @@
-import { Subscription } from 'rxjs';
-import { Component, OnInit } from '@angular/core';
-import { MessageService } from 'primeng/api';
-import { Store } from '@ngrx/store';
-import { Observable } from 'rxjs';
-import * as CapacityActions from './state/capacity.actions';
-import * as CapacitySelectors from './state/capacity.selectors';
-
 export interface CapacityRow {
   month: string;
   rtb: number;
@@ -15,12 +7,30 @@ export interface CapacityRow {
   deferredNew: number;
 }
 
+import { Subscription } from 'rxjs';
+import { Component, OnInit } from '@angular/core';
+import { MessageService } from 'primeng/api';
+import { Store } from '@ngrx/store';
+import { Observable } from 'rxjs';
+import * as CapacityActions from './state/capacity.actions';
+import * as CapacitySelectors from './state/capacity.selectors';
+
 @Component({
   selector: 'app-capacity-planner',
   templateUrl: './capacity-planner.component.html',
   styleUrls: ['./capacity-planner.component.scss'],
 })
 export class CapacityPlannerComponent implements OnInit {
+  // ...existing properties and methods...
+
+  // Returns the sum of all extra CTB row values for a given month index
+  getCtbSumByMonth(monthIdx: number): number {
+    if (!this.extraCtbRows || this.extraCtbRows.length === 0) {
+      return 0;
+    }
+    // Sum the value at monthIdx for each extra CTB row
+    return this.extraCtbRows.reduce((sum: number, row: any) => sum + (Number(row.values[monthIdx]) || 0), 0);
+  }
   statusOptions: { label: string; value: string }[] = [
     { label: 'New', value: 'New' },
     { label: 'Priority', value: 'Priority' },
@@ -252,25 +262,20 @@ export class CapacityPlannerComponent implements OnInit {
   setSearch(search: string) {
     this.store.dispatch(CapacityActions.setSearch({ search }));
   }
-  onRtbChange(index: number, value: any, row: CapacityRow) {
-    const numValue = Number(value);
-    const updated: CapacityRow = { ...row, rtb: numValue };
-    updated.remainingCapacity =
-      updated.forecastedCapacity - updated.rtb - updated.capacityRequested;
-    this.updateRow(index, updated);
-  }
 
-  onCapacityRequestedChange(index: number, value: any, row: CapacityRow) {
-    const numValue = Number(value);
-    const updated: CapacityRow = { ...row, capacityRequested: numValue };
-    updated.remainingCapacity =
-      updated.forecastedCapacity - updated.rtb - updated.capacityRequested;
-    this.updateRow(index, updated);
-  }
-
-  onDeferredNewChange(index: number, value: any, row: CapacityRow) {
-    const numValue = Number(value);
-    const updated: CapacityRow = { ...row, deferredNew: numValue };
-    this.updateRow(index, updated);
+  // When a value in an extra CTB row is increased, add 1 to the right cell
+  onExtraCtbInput(rowIdx: number, colIdx: number, event: any) {
+    const value = Number(event.target.value);
+    if (isNaN(value) || value < 0) { return; }
+    const row = this.extraCtbRows[rowIdx];
+    // Only act if the value was increased
+    if (value > (row.values[colIdx] ?? 0)) {
+      if (colIdx + 1 < row.values.length) {
+        row.values[colIdx + 1] = Number(row.values[colIdx + 1] || 0) + 1;
+      }
+    }
+    row.values[colIdx] = value;
+    // Update total for this row
+    row.total = row.values.reduce((a: number, b: number) => a + (Number(b) || 0), 0);
   }
 }

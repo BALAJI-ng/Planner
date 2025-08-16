@@ -1,3 +1,25 @@
+.ctb-summary-cell {
+  background: #e0e0e0;
+  color: #888;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 8px 12px;
+  text-align: center;
+  min-width: 80px;
+  user-select: none;
+  pointer-events: none;
+}
+.ctb-summary-cell {
+  background: #e0e0e0;
+  color: #888;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 8px 12px;
+  text-align: center;
+  min-width: 80px;
+  user-select: none;
+  pointer-events: none;
+}
 .capacity-planner {
   .section-header {
     display: flex;
@@ -73,11 +95,11 @@
       position: relative;
       min-width: 180px;
       font-size: 1.05rem;
-      padding-left: 1.2rem;
-      letter-spacing: 0.1px;
-      border-radius: 8px 0 0 8px;
-    }
-    .forecast-label {
+        .forecasted-row .forecasted-label,
+        .forecasted-row td {
+          color: #b22222; /* Same red as RTB */
+          font-weight: 600;
+        }
       /* border-left: 4px solid #a52a2a; */
       /* border-bottom: 3px solid #a52a2a; */
       color: #a52a2a !important;

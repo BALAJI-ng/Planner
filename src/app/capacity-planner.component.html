@@ -16,22 +16,16 @@
         <tr>
           <th class="row-label">&nbsp;</th>
           <th class="total-col">Total</th>
-          <th *ngFor="let row of rowsLocal; let i = index">
-            {{ row.month }}
-          </th>
+          <th *ngFor="let row of rowsLocal; let i = index">{{ row.month }}</th>
+          <th class="icon-col"></th>
         </tr>
       </thead>
       <tbody>
-        <tr class="forecast-row">
-          <td class="row-label forecast-label">Forecasted Capacity</td>
+        <tr class="forecasted-row">
+          <td class="row-label forecasted-label">Forecasted Capacity</td>
           <td class="total-col">{{ totalForecastedCapacity }}</td>
-          <td *ngFor="let row of rowsLocal">
-            <input
-              type="number"
-              [ngModel]="row.forecastedCapacity"
-              [readonly]="true"
-            />
-          </td>
+          <td *ngFor="let row of rowsLocal">{{ row.forecastedCapacity }}</td>
+          <td class="icon-col"></td>
         </tr>
         <tr class="rtb-row">
           <td class="row-label rtb-label">RTB</td>
@@ -71,16 +65,9 @@
           <td class="row-label ctb-label">Capacity Requested by (CTB)</td>
           <td class="total-col">{{ totalCapacityRequested }}</td>
           <td *ngFor="let row of rowsLocal; let i = index">
-            <input
-              #ctbInput
-              type="number"
-              inputmode="numeric"
-              min="0"
-              [max]="rowsLocal[i].forecastedCapacity - rowsLocal[i].rtb"
-              [value]="rowsLocal[i].capacityRequested"
-              (input)="onCtbInput(i, ctbInput)"
-              tabindex="0"
-            />
+            <div class="ctb-summary-cell">
+              {{ getCtbSumByMonth(i) }}
+            </div>
           </td>
           <td class="icon-col">
             <button
@@ -118,6 +105,7 @@
               type="number"
               min="0"
               [(ngModel)]="extra.values[i]"
+              (input)="onExtraCtbInput(idx, i, $event)"
               tabindex="0"
             />
           </td>
