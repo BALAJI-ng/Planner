@@ -51,22 +51,6 @@
             />
           </td>
         </tr>
-        <tr class="ctb-row">
-          <td class="row-label ctb-label">Capacity Requested by (CTB)</td>
-          <td class="total-col">{{ totalCapacityRequested }}</td>
-          <td *ngFor="let row of rowsLocal; let i = index">
-            <input
-              #ctbInput
-              type="number"
-              inputmode="numeric"
-              min="0"
-              [max]="rowsLocal[i].forecastedCapacity - rowsLocal[i].rtb"
-              [value]="rowsLocal[i].capacityRequested"
-              (input)="onCtbInput(i, ctbInput)"
-              tabindex="0"
-            />
-          </td>
-        </tr>
         <tr class="remaining-row">
           <td class="row-label remaining-label">Remaining Capacity</td>
           <td class="total-col">{{ totalRemainingCapacity }}</td>
@@ -79,6 +63,22 @@
             <input
               type="number"
               [(ngModel)]="rowsLocal[i].deferredNew"
+              tabindex="0"
+            />
+          </td>
+        </tr>
+        <tr class="ctb-row">
+          <td class="row-label ctb-label">Capacity Requested by (CTB)</td>
+          <td class="total-col">{{ totalCapacityRequested }}</td>
+          <td *ngFor="let row of rowsLocal; let i = index">
+            <input
+              #ctbInput
+              type="number"
+              inputmode="numeric"
+              min="0"
+              [max]="rowsLocal[i].forecastedCapacity - rowsLocal[i].rtb"
+              [value]="rowsLocal[i].capacityRequested"
+              (input)="onCtbInput(i, ctbInput)"
               tabindex="0"
             />
           </td>
