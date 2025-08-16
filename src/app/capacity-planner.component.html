@@ -82,6 +82,39 @@
               tabindex="0"
             />
           </td>
+          <td class="icon-col">
+            <button
+              pButton
+              type="button"
+              icon="pi pi-plus"
+              class="add-ctb-btn p-button-success"
+              (click)="addExtraCtbRow()"
+              title="Add CTB Row"
+            ></button>
+          </td>
+        </tr>
+        <!-- Extra CTB rows -->
+        <tr *ngFor="let extra of extraCtbRows; let idx = index" class="ctb-row extra-ctb-row">
+          <td class="row-label ctb-label">Extra CTB</td>
+          <td class="total-col">{{ extra.total }}</td>
+          <td *ngFor="let val of extra.values; let i = index">
+            <input
+              type="number"
+              min="0"
+              [(ngModel)]="extra.values[i]"
+              tabindex="0"
+            />
+          </td>
+          <td class="icon-col">
+            <button
+              pButton
+              type="button"
+              icon="pi pi-trash"
+              class="delete-ctb-btn p-button-danger"
+              (click)="deleteExtraCtbRow(extra.id)"
+              title="Delete CTB Row"
+            ></button>
+          </td>
         </tr>
       </tbody>
     </table>

@@ -21,6 +21,30 @@ export interface CapacityRow {
   styleUrls: ['./capacity-planner.component.scss'],
 })
 export class CapacityPlannerComponent implements OnInit {
+  // --- Extra CTB rows logic ---
+  extraCtbRows: Array<{ id: number; values: number[]; total: number }> = [];
+  private ctbRowIdCounter = 1;
+
+  addExtraCtbRow() {
+    const months = this.rowsLocal.length;
+    this.extraCtbRows.push({
+      id: this.ctbRowIdCounter++,
+      values: Array(months).fill(0),
+      total: 0,
+    });
+  }
+
+  deleteExtraCtbRow(id: number) {
+    this.extraCtbRows = this.extraCtbRows.filter((row) => row.id !== id);
+  }
+
+  // Update total for each extra CTB row when values change
+  ngDoCheck() {
+    for (const extra of this.extraCtbRows) {
+      extra.total = extra.values.reduce((a: number, b: number) => a + (Number(b) || 0), 0);
+    }
+  }
+  // --- Extra CTB rows logic ---
   onRtbInput(index: number, input: HTMLInputElement) {
     const row = this.rowsLocal[index];
     let val = Number(input.value);
