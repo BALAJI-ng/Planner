@@ -24,7 +24,7 @@ export class CapacityPlannerComponent implements OnInit {
   statusOptions: { label: string; value: string }[] = [
     { label: 'New', value: 'New' },
     { label: 'Priority', value: 'Priority' },
-    { label: 'Deffered', value: 'Deffered' }
+    { label: 'Deferred', value: 'Deferred' }
   ];
   selectedStatus: string | null = null;
   // --- Extra CTB rows logic ---
