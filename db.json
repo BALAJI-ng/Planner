@@ -1,0 +1,16 @@
+{
+  "capacity": [
+    { "month": "Sep 2024", "rtb": 0, "forecastedCapacity": 100, "capacityRequested": 0, "remainingCapacity": 100, "deferredNew": 0 },
+    { "month": "Oct 2024", "rtb": 0, "forecastedCapacity": 100, "capacityRequested": 0, "remainingCapacity": 100, "deferredNew": 0 },
+    { "month": "Nov 2024", "rtb": 0, "forecastedCapacity": 100, "capacityRequested": 0, "remainingCapacity": 100, "deferredNew": 0 },
+    { "month": "Dec 2024", "rtb": 0, "forecastedCapacity": 100, "capacityRequested": 0, "remainingCapacity": 100, "deferredNew": 0 },
+    { "month": "Jan 2025", "rtb": 0, "forecastedCapacity": 100, "capacityRequested": 0, "remainingCapacity": 100, "deferredNew": 0 },
+    { "month": "Feb 2025", "rtb": 0, "forecastedCapacity": 100, "capacityRequested": 0, "remainingCapacity": 100, "deferredNew": 0 },
+    { "month": "Mar 2025", "rtb": 0, "forecastedCapacity": 100, "capacityRequested": 0, "remainingCapacity": 100, "deferredNew": 0 },
+    { "month": "Apr 2025", "rtb": 0, "forecastedCapacity": 100, "capacityRequested": 0, "remainingCapacity": 100, "deferredNew": 0 },
+    { "month": "May 2025", "rtb": 0, "forecastedCapacity": 100, "capacityRequested": 0, "remainingCapacity": 100, "deferredNew": 0 },
+    { "month": "Jun 2025", "rtb": 0, "forecastedCapacity": 100, "capacityRequested": 0, "remainingCapacity": 100, "deferredNew": 0 },
+    { "month": "Jul 2025", "rtb": 0, "forecastedCapacity": 100, "capacityRequested": 0, "remainingCapacity": 100, "deferredNew": 0 },
+    { "month": "Aug 2025", "rtb": 0, "forecastedCapacity": 100, "capacityRequested": 0, "remainingCapacity": 100, "deferredNew": 0 }
+  ]
+}

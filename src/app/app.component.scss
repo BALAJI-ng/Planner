@@ -1,0 +1,65 @@
+
+.main-header {
+	background: #7b295e;
+	color: #fff;
+	padding: 0;
+	.navbar {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0.5rem 1.5rem;
+		font-size: 1.1rem;
+		.navbar-left {
+			display: flex;
+			align-items: center;
+			.bank-logo {
+				font-weight: bold;
+				font-size: 1.3rem;
+				letter-spacing: 1px;
+				margin-right: 0.5rem;
+			}
+			.app-title {
+				font-size: 1.1rem;
+				color: #ffe082;
+				margin-left: 0.5rem;
+			}
+		}
+		.navbar-right {
+			display: flex;
+			align-items: center;
+			gap: 1rem;
+			.project-id {
+				background: #e3f2fd;
+				color: #1a237e;
+				padding: 0.2rem 0.7rem;
+				border-radius: 4px;
+				font-size: 1rem;
+				font-weight: 500;
+			}
+			.status {
+				background: #ffe082;
+				color: #222;
+				padding: 0.2rem 0.7rem;
+				border-radius: 4px;
+				font-weight: bold;
+				margin-left: 0.5rem;
+			}
+			.status.approved {
+				background: #ffe082;
+				color: #222;
+			}
+		}
+	}
+}
+
+main {
+	padding: 1.5rem 2rem 0 2rem;
+}
+
+.page-title {
+	font-size: 2rem;
+	color: #7b295e;
+	font-weight: bold;
+	margin-bottom: 1.2rem;
+	letter-spacing: 1px;
+}
