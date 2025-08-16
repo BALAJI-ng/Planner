@@ -76,40 +76,40 @@
       border-radius: 8px 0 0 8px;
     }
     .forecast-label {
-      border-left: 4px solid #a52a2a;
-      border-bottom: 3px solid #a52a2a;
-      color: #a52a2a;
+      /* border-left: 4px solid #a52a2a; */
+      /* border-bottom: 3px solid #a52a2a; */
+      color: #a52a2a !important;
       background: linear-gradient(90deg, #fff, #fbe9e7 80%);
     }
     .rtb-label {
-      border-left: 4px solid #fbc02d;
-      border-bottom: 3px solid #fbc02d;
-      color: #fbc02d;
+      /* border-left: 4px solid #fbc02d; */
+      /* border-bottom: 3px solid #fbc02d; */
+      color: #a52a2a !important;
       background: linear-gradient(90deg, #fff, #fffde7 80%);
     }
     .ctb-label {
-      border-left: 4px solid #ff9800;
-      border-bottom: 3px solid #ff9800;
-      color: #ff9800;
+      /* border-left: 4px solid #ff9800; */
+      /* border-bottom: 3px solid #ff9800; */
+      color: #a52a2a !important;
       background: linear-gradient(90deg, #fff, #fff3e0 80%);
     }
     .remaining-label {
-      border-left: 4px solid #a52a2a;
-      border-bottom: 3px solid #a52a2a;
-      color: #a52a2a;
+      /* border-left: 4px solid #a52a2a; */
+      /* border-bottom: 3px solid #a52a2a; */
+      color: #a52a2a !important;
       background: linear-gradient(90deg, #fff, #fbe9e7 80%);
     }
     .deferred-label {
-      border-left: 4px solid #fbc02d;
-      border-bottom: 3px solid #fbc02d;
-      color: #fbc02d;
+      /* border-left: 4px solid #fbc02d; */
+      /* border-bottom: 3px solid #fbc02d; */
+      color: #a52a2a !important;
       background: linear-gradient(90deg, #fff, #fffde7 80%);
     }
     .total-col {
       font-weight: bold;
       background: #f3f3f3;
       color: #a52a2a;
-      border-right: 2px solid #a52a2a;
+      /* border-right: 2px solid #a52a2a; */
       font-size: 1.08rem;
       box-shadow: 1px 0 0 #e0e0e0;
     }
@@ -155,9 +155,9 @@
   .ctb-section {
     margin-top: 2rem;
     .section-title {
-      color: #ff9800;
-      border-bottom: 3px solid #ff9800;
-      text-shadow: 0 1px 0 #fff, 0 2px 4px rgba(255,152,0,0.08);
+      color: #a52a2a;
+      border-bottom: 3px solid #a52a2a;
+      text-shadow: 0 1px 0 #fff, 0 2px 4px rgba(165,42,42,0.08);
     }
     .ctb-toolbar {
       display: flex;

@@ -31,11 +31,12 @@ export class CapacityPlannerComponent implements OnInit {
       this.messageService.add({
         severity: 'warn',
         summary: 'Validation',
-        detail: 'RTB + CTB cannot exceed Forecasted Capacity. Value adjusted.'
+        detail: 'RTB + CTB cannot exceed Forecasted Capacity. Value adjusted.',
       });
     }
     row.rtb = val;
-    row.remainingCapacity = row.forecastedCapacity - row.rtb - row.capacityRequested;
+    row.remainingCapacity =
+      row.forecastedCapacity - row.rtb - row.capacityRequested;
     input.value = String(row.rtb);
   }
 
@@ -49,11 +50,12 @@ export class CapacityPlannerComponent implements OnInit {
       this.messageService.add({
         severity: 'warn',
         summary: 'Validation',
-        detail: 'RTB + CTB cannot exceed Forecasted Capacity. Value adjusted.'
+        detail: 'RTB + CTB cannot exceed Forecasted Capacity. Value adjusted.',
       });
     }
     row.capacityRequested = val;
-    row.remainingCapacity = row.forecastedCapacity - row.rtb - row.capacityRequested;
+    row.remainingCapacity =
+      row.forecastedCapacity - row.rtb - row.capacityRequested;
     input.value = String(row.capacityRequested);
   }
   validateRtbCtb(index: number, field: 'rtb' | 'ctb') {
@@ -83,12 +85,13 @@ export class CapacityPlannerComponent implements OnInit {
         changed = true;
       }
     }
-    row.remainingCapacity = row.forecastedCapacity - row.rtb - row.capacityRequested;
+    row.remainingCapacity =
+      row.forecastedCapacity - row.rtb - row.capacityRequested;
     if (changed) {
       this.messageService.add({
         severity: 'warn',
         summary: 'Validation',
-        detail: 'RTB + CTB cannot exceed Forecasted Capacity. Value adjusted.'
+        detail: 'RTB + CTB cannot exceed Forecasted Capacity. Value adjusted.',
       });
     }
   }

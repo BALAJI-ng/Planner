@@ -42,7 +42,9 @@
               type="number"
               inputmode="numeric"
               min="0"
-              [max]="rowsLocal[i].forecastedCapacity - rowsLocal[i].capacityRequested"
+              [max]="
+                rowsLocal[i].forecastedCapacity - rowsLocal[i].capacityRequested
+              "
               [value]="rowsLocal[i].rtb"
               (input)="onRtbInput(i, rtbInput)"
               tabindex="0"
