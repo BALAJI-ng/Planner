@@ -1,3 +1,5 @@
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { DropdownModule } from 'primeng/dropdown';
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
@@ -26,7 +28,9 @@ import { CapacityEffects } from './state/capacity.effects';
     ButtonModule,
     InputTextModule,
     ToastModule,
-    FormsModule,
+  DropdownModule,
+  BrowserAnimationsModule,
+  FormsModule,
     HttpClientModule,
     StoreModule.forRoot({ capacity: capacityReducer }),
     EffectsModule.forRoot([CapacityEffects]),

@@ -10,7 +10,7 @@
       class="download-btn"
     ></button>
   </div>
-  <div class="plan-table-wrapper" *ngIf="rows$ | async as rows">
+  <div *ngIf="rows$ | async as rows">
     <table class="plan-table">
       <thead>
         <tr>
@@ -94,8 +94,24 @@
           </td>
         </tr>
         <!-- Extra CTB rows -->
-        <tr *ngFor="let extra of extraCtbRows; let idx = index" class="ctb-row extra-ctb-row">
-          <td class="row-label ctb-label">Extra CTB</td>
+        <tr
+          *ngFor="let extra of extraCtbRows; let idx = index"
+          class="ctb-row extra-ctb-row"
+        >
+          <td class="row-label ctb-label">
+            <div class="ctb-header-controls">
+              <input pInputText type="text" placeholder="Search..." class="ctb-search-box" />
+              <p-dropdown 
+                [options]="statusOptions"
+                [(ngModel)]="extra.status"
+                optionLabel="label"
+                placeholder="Status"
+                [showClear]="true"
+                appendTo="self"
+                class="ctb-status-dropdown"
+              ></p-dropdown>
+            </div>
+          </td>
           <td class="total-col">{{ extra.total }}</td>
           <td *ngFor="let val of extra.values; let i = index">
             <input
@@ -119,26 +135,4 @@
       </tbody>
     </table>
   </div>
-
-  <!-- Capacity Requested by (CTB) Section -->
-  <div class="section-header ctb-section">
-    <span class="section-title">Capacity Requested by (CTB)</span>
-    <div class="ctb-toolbar">
-      <input
-        pInputText
-        [ngModel]="(search$ | async) ?? ''"
-        (ngModelChange)="setSearch($event)"
-        placeholder="Search CTB..."
-      />
-      <button
-        pButton
-        type="button"
-        label="Add Capacity Allocation"
-        class="add-btn"
-        (click)="addCapacityRow()"
-      ></button>
-    </div>
-  </div>
-  <!-- Placeholder for CTB table, to be implemented -->
-  <div class="ctb-table-placeholder">(CTB table goes here)</div>
 </div>

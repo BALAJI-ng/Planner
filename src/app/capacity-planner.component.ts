@@ -21,8 +21,14 @@ export interface CapacityRow {
   styleUrls: ['./capacity-planner.component.scss'],
 })
 export class CapacityPlannerComponent implements OnInit {
+  statusOptions: { label: string; value: string }[] = [
+    { label: 'New', value: 'New' },
+    { label: 'Priority', value: 'Priority' },
+    { label: 'Deffered', value: 'Deffered' }
+  ];
+  selectedStatus: string | null = null;
   // --- Extra CTB rows logic ---
-  extraCtbRows: Array<{ id: number; values: number[]; total: number }> = [];
+  extraCtbRows: Array<{ id: number; values: number[]; total: number; status?: string }> = [];
   private ctbRowIdCounter = 1;
 
   addExtraCtbRow() {
@@ -31,6 +37,7 @@ export class CapacityPlannerComponent implements OnInit {
       id: this.ctbRowIdCounter++,
       values: Array(months).fill(0),
       total: 0,
+      status: undefined
     });
   }
 
