@@ -1,126 +1,66 @@
-<p-toast></p-toast>
 <div class="capacity-planner">
-  <!-- Capacity Plan Section -->
   <div class="section-header">
     <span class="section-title">Capacity Plan</span>
-    <button
-      pButton
-      type="button"
-      icon="pi pi-download"
-      class="download-btn"
-    ></button>
   </div>
-  <div *ngIf="rows$ | async as rows">
+  <div *ngIf="forecastRows.length > 0">
     <table class="plan-table">
       <thead>
         <tr>
-          <th class="row-label">&nbsp;</th>
-          <th class="total-col">Total</th>
-          <th *ngFor="let row of rowsLocal; let i = index">{{ row.month }}</th>
-          <th class="icon-col"></th>
+          <th class="sticky-col sticky-label">Row Label</th>
+          <ng-container *ngFor="let column of columns; let i = index">
+            <th *ngIf="i === 1" class="sticky-col sticky-total">
+              {{ column }}
+            </th>
+            <th *ngIf="i > 1">{{ column }}</th>
+          </ng-container>
         </tr>
       </thead>
       <tbody>
-        <tr class="forecasted-row">
-          <td class="row-label forecasted-label">Forecasted Capacity</td>
-          <td class="total-col">{{ totalForecastedCapacity }}</td>
-          <td *ngFor="let row of rowsLocal">{{ row.forecastedCapacity }}</td>
-          <td class="icon-col"></td>
-        </tr>
-        <tr class="rtb-row">
-          <td class="row-label rtb-label">RTB</td>
-          <td class="total-col">{{ totalRtb }}</td>
-          <td *ngFor="let row of rowsLocal; let i = index">
-            <input
-              #rtbInput
-              type="number"
-              inputmode="numeric"
-              min="0"
-              [max]="
-                rowsLocal[i].forecastedCapacity - rowsLocal[i].capacityRequested
-              "
-              [value]="rowsLocal[i].rtb"
-              (input)="onRtbInput(i, rtbInput)"
-              tabindex="0"
-            />
+        <tr *ngFor="let row of forecastRows; let rowIdx = index">
+          <td class="sticky-col sticky-label">
+            {{ row.forecastColumns[0].rowLabel || "" }}
           </td>
-        </tr>
-        <tr class="remaining-row">
-          <td class="row-label remaining-label">Remaining Capacity</td>
-          <td class="total-col">{{ totalRemainingCapacity }}</td>
-          <td *ngFor="let row of rowsLocal">{{ row.remainingCapacity }}</td>
-        </tr>
-        <tr class="deferred-row">
-          <td class="row-label deferred-label">Deferred/New</td>
-          <td class="total-col">{{ totalDeferredNew }}</td>
-          <td *ngFor="let row of rowsLocal; let i = index">
-            <input
-              type="number"
-              [(ngModel)]="rowsLocal[i].deferredNew"
-              tabindex="0"
-            />
-          </td>
-        </tr>
-        <tr class="ctb-row">
-          <td class="row-label ctb-label">Capacity Requested by (CTB)</td>
-          <td class="total-col">{{ totalCapacityRequested }}</td>
-          <td *ngFor="let row of rowsLocal; let i = index">
-            <div class="ctb-summary-cell">
-              {{ getCtbSumByMonth(i) }}
-            </div>
-          </td>
-          <td class="icon-col">
-            <button
-              pButton
-              type="button"
-              icon="pi pi-plus"
-              class="add-ctb-btn p-button-success"
-              (click)="addExtraCtbRow()"
-              title="Add CTB Row"
-            ></button>
-          </td>
-        </tr>
-        <!-- Extra CTB rows -->
-        <tr
-          *ngFor="let extra of extraCtbRows; let idx = index"
-          class="ctb-row extra-ctb-row"
-        >
-          <td class="row-label ctb-label">
-            <div class="ctb-header-controls">
-              <input pInputText type="text" placeholder="Search..." class="ctb-search-box" />
-              <p-dropdown 
-                [options]="statusOptions"
-                [(ngModel)]="extra.status"
-                optionLabel="label"
-                placeholder="Status"
-                [showClear]="true"
-                appendTo="self"
-                class="ctb-status-dropdown"
-              ></p-dropdown>
-            </div>
-          </td>
-          <td class="total-col">{{ extra.total }}</td>
-          <td *ngFor="let val of extra.values; let i = index">
-            <input
-              type="number"
-              min="0"
-              [(ngModel)]="extra.values[i]"
-              (input)="onExtraCtbInput(idx, i, $event)"
-              tabindex="0"
-            />
-          </td>
-          <td class="icon-col">
-            <button
-              pButton
-              type="button"
-              icon="pi pi-trash"
-              class="delete-ctb-btn p-button-danger"
-              (click)="deleteExtraCtbRow(extra.id)"
-              title="Delete CTB Row"
-            ></button>
-          </td>
+          <ng-container *ngFor="let col of row.forecastColumns; let i = index">
+            <td
+              *ngIf="i === 1"
+              class="sticky-col sticky-total"
+              [ngClass]="col.cellCss"
+            >
+              <!-- Remaining Capacity: show calculated total -->
+              <ng-container *ngIf="row.forecastColumns[0].rowLabel === 'Remaining Capacity'">
+                {{ getRowTotal(row) }}
+              </ng-container>
+              <!-- RTB and CTB: show calculated total -->
+              <ng-container *ngIf="isTotalDynamic(row.forecastColumns[0].rowLabel) && row.forecastColumns[0].rowLabel !== 'Remaining Capacity'">
+                {{ getRowTotal(row) }}
+              </ng-container>
+              <!-- Other rows: show static value -->
+              <ng-container *ngIf="!isTotalDynamic(row.forecastColumns[0].rowLabel)">
+                {{ col.amount != null ? col.amount : 0 }}
+              </ng-container>
+            </td>
+            <td *ngIf="i > 1" [ngClass]="col.cellCss">
+              <!-- Editable for RTB and CTB rows, current or future month -->
+              <ng-container *ngIf="isEditable(row.forecastColumns[0].rowLabel, col.month, col.year)">
+                <input type="number" [ngModel]="col.amount"
+                  (ngModelChange)="onAmountChange(row, col, i, $event)"
+                  [min]="0" />
+              </ng-container>
+              <ng-container *ngIf="!isEditable(row.forecastColumns[0].rowLabel, col.month, col.year)">
+                <!-- Remaining Capacity: show calculated value -->
+                <ng-container *ngIf="row.forecastColumns[0].rowLabel === 'Remaining Capacity'">
+                  {{ getRemainingCapacityAmount(i) }}
+                </ng-container>
+                <!-- Other rows: show static value -->
+                <ng-container *ngIf="row.forecastColumns[0].rowLabel !== 'Remaining Capacity'">
+                  {{ col.amount != null ? col.amount : 0 }}
+                </ng-container>
+              </ng-container>
+            </td>
+          </ng-container>
         </tr>
       </tbody>
     </table>
   </div>
+  <p-toast></p-toast>
 </div>

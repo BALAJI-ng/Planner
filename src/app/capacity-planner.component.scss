@@ -1,3 +1,18 @@
+/* Sticky column styles for table */
+.sticky-col {
+  position: sticky;
+  left: 0;
+  background: #fff;
+  z-index: 2;
+}
+.sticky-label {
+  left: 0;
+  z-index: 3;
+}
+.sticky-total {
+  left: 150px; /* Adjust based on column width */
+  z-index: 3;
+}
 .ctb-summary-cell {
   background: #e0e0e0;
   color: #888;

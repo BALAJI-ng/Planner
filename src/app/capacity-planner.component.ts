@@ -1,19 +1,29 @@
-export interface CapacityRow {
-  month: string;
-  rtb: number;
-  forecastedCapacity: number;
-  capacityRequested: number;
-  remainingCapacity: number;
-  deferredNew: number;
+// New interfaces for API response
+export interface ForecastColumn {
+  id: number;
+  month: number | null;
+  year: number | null;
+  amount: number | null;
+  columnLabel: string | null;
+  rowLabel: string | null;
+  cellCss: string;
+  // ...other fields as needed
 }
 
-import { Subscription } from 'rxjs';
+export interface ForecastRow {
+  forecastColumns: ForecastColumn[];
+}
+
+export interface CapacityForecastResponse {
+  result: {
+    transformationUnitId: number;
+    forecastRows: ForecastRow[];
+  };
+}
+
 import { Component, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { MessageService } from 'primeng/api';
-import { Store } from '@ngrx/store';
-import { Observable } from 'rxjs';
-import * as CapacityActions from './state/capacity.actions';
-import * as CapacitySelectors from './state/capacity.selectors';
 
 @Component({
   selector: 'app-capacity-planner',
@@ -21,261 +31,151 @@ import * as CapacitySelectors from './state/capacity.selectors';
   styleUrls: ['./capacity-planner.component.scss'],
 })
 export class CapacityPlannerComponent implements OnInit {
-  // ...existing properties and methods...
-
-  // Returns the sum of all extra CTB row values for a given month index
-  getCtbSumByMonth(monthIdx: number): number {
-    if (!this.extraCtbRows || this.extraCtbRows.length === 0) {
-      return 0;
-    }
-    // Sum the value at monthIdx for each extra CTB row
-    return this.extraCtbRows.reduce((sum: number, row: any) => sum + (Number(row.values[monthIdx]) || 0), 0);
-  }
-  statusOptions: { label: string; value: string }[] = [
-    { label: 'New', value: 'New' },
-    { label: 'Priority', value: 'Priority' },
-    { label: 'Deferred', value: 'Deferred' }
-  ];
-  selectedStatus: string | null = null;
-  // --- Extra CTB rows logic ---
-  extraCtbRows: Array<{ id: number; values: number[]; total: number; status?: string }> = [];
-  private ctbRowIdCounter = 1;
-
-  addExtraCtbRow() {
-    const months = this.rowsLocal.length;
-    this.extraCtbRows.push({
-      id: this.ctbRowIdCounter++,
-      values: Array(months).fill(0),
-      total: 0,
-      status: undefined
-    });
+  isInputDisabled(row: ForecastRow, col: ForecastColumn, monthIdx: number): boolean {
+    // Always allow decrease
+    return false;
   }
 
-  deleteExtraCtbRow(id: number) {
-    this.extraCtbRows = this.extraCtbRows.filter((row) => row.id !== id);
-  }
-
-  // Update total for each extra CTB row when values change
-  ngDoCheck() {
-    for (const extra of this.extraCtbRows) {
-      extra.total = extra.values.reduce((a: number, b: number) => a + (Number(b) || 0), 0);
-    }
-  }
-  // --- Extra CTB rows logic ---
-  onRtbInput(index: number, input: HTMLInputElement) {
-    const row = this.rowsLocal[index];
-    let val = Number(input.value);
-    let max = row.forecastedCapacity - row.capacityRequested;
-    if (isNaN(val) || val < 0) val = 0;
-    if (val > max) {
-      val = max < 0 ? 0 : max;
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Validation',
-        detail: 'RTB + CTB cannot exceed Forecasted Capacity. Value adjusted.',
-      });
-    }
-    row.rtb = val;
-    row.remainingCapacity =
-      row.forecastedCapacity - row.rtb - row.capacityRequested;
-    input.value = String(row.rtb);
-  }
-
-  onCtbInput(index: number, input: HTMLInputElement) {
-    const row = this.rowsLocal[index];
-    let val = Number(input.value);
-    let max = row.forecastedCapacity - row.rtb;
-    if (isNaN(val) || val < 0) val = 0;
-    if (val > max) {
-      val = max < 0 ? 0 : max;
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Validation',
-        detail: 'RTB + CTB cannot exceed Forecasted Capacity. Value adjusted.',
-      });
-    }
-    row.capacityRequested = val;
-    row.remainingCapacity =
-      row.forecastedCapacity - row.rtb - row.capacityRequested;
-    input.value = String(row.capacityRequested);
-  }
-  validateRtbCtb(index: number, field: 'rtb' | 'ctb') {
-    const row = this.rowsLocal[index];
-    // Clamp RTB and CTB to not allow sum > forecastedCapacity
-    let changed = false;
-    if (field === 'rtb') {
-      let maxRtb = row.forecastedCapacity - row.capacityRequested;
-      if (maxRtb < 0) maxRtb = 0;
-      if (row.rtb > maxRtb) {
-        row.rtb = maxRtb;
-        changed = true;
+  onAmountChange(row: ForecastRow, col: ForecastColumn, monthIdx: number, newValue: number) {
+    const max = this.getMaxAllowed(row, monthIdx);
+      if (newValue < 0) {
+        col.amount = null;
+        return;
       }
-      if (row.rtb < 0 || isNaN(row.rtb)) {
-        row.rtb = 0;
-        changed = true;
-      }
-    } else {
-      let maxCtb = row.forecastedCapacity - row.rtb;
-      if (maxCtb < 0) maxCtb = 0;
-      if (row.capacityRequested > maxCtb) {
-        row.capacityRequested = maxCtb;
-        changed = true;
-      }
-      if (row.capacityRequested < 0 || isNaN(row.capacityRequested)) {
-        row.capacityRequested = 0;
-        changed = true;
-      }
+      if (newValue > max) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Max Capacity',
+          detail: 'Maximum capacity reached!',
+          life: 2000
+        });
+        col.amount = null;
+      return;
     }
-    row.remainingCapacity =
-      row.forecastedCapacity - row.rtb - row.capacityRequested;
-    if (changed) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Validation',
-        detail: 'RTB + CTB cannot exceed Forecasted Capacity. Value adjusted.',
-      });
-    }
-  }
-  lastValidRtb: Array<number> = [];
-  lastValidCapacityRequested: Array<number> = [];
-  rowsLocal: CapacityRow[] = [];
-
-  private rowsSub?: Subscription;
-  onRtbBlur(index: number, row: CapacityRow) {
-    this.updateRow(index, row);
+    col.amount = newValue;
   }
 
-  onCapacityRequestedBlur(index: number, row: CapacityRow) {
-    this.updateRow(index, row);
-  }
-
-  onDeferredNewBlur(index: number, row: CapacityRow) {
-    this.updateRow(index, row);
-  }
-  search$: Observable<string>;
-  rows$: Observable<CapacityRow[]>;
-  loading$: Observable<boolean>;
-
-  constructor(private store: Store, private messageService: MessageService) {
-    this.search$ = this.store.select(CapacitySelectors.selectSearch);
-    this.rows$ = this.store.select(CapacitySelectors.selectRows);
-    this.loading$ = this.store.select(CapacitySelectors.selectLoading);
-  }
-
-  // --- Total calculation getters for template ---
-  get totalForecastedCapacity(): number {
-    return this.rowsLocal.reduce((a, b) => a + b.forecastedCapacity, 0);
-  }
-  get totalRtb(): number {
-    return this.rowsLocal.reduce((a, b) => a + b.rtb, 0);
-  }
-  get totalCapacityRequested(): number {
-    return this.rowsLocal.reduce((a, b) => a + b.capacityRequested, 0);
-  }
-  get totalRemainingCapacity(): number {
-    return this.rowsLocal.reduce((a, b) => a + b.remainingCapacity, 0);
-  }
-  get totalDeferredNew(): number {
-    return this.rowsLocal.reduce((a, b) => a + b.deferredNew, 0);
-  }
-
-  ngOnInit() {
-    this.store.dispatch(CapacityActions.loadCapacity());
-    this.rowsSub = this.rows$.subscribe((rows) => {
-      // Deep clone to avoid mutating store state
-      this.rowsLocal = rows.map((r) => ({ ...r }));
-      // Initialize last valid values
-      this.lastValidRtb = rows.map((r) => r.rtb);
-      this.lastValidCapacityRequested = rows.map((r) => r.capacityRequested);
-    });
-  }
-
-  addCapacityRow() {
-    this.store.dispatch(CapacityActions.addRow());
-  }
-
-  getTotal(key: keyof CapacityRow): number {
-    return this.rowsLocal.reduce(
-      (sum, row) => sum + (Number(row[key]) || 0),
-      0
+  isTotalDynamic(rowLabel: string | null): boolean {
+    return (
+      rowLabel === 'RTB' ||
+      rowLabel === 'Capacity Requested by (CTB)' ||
+      rowLabel === 'Remaining Capacity'
     );
   }
 
-  onLocalEdit(index: number) {
-    const row = this.rowsLocal[index];
-    // Validate RTB and Capacity Requested do not exceed remaining capacity
-    const maxAllowed = row.forecastedCapacity;
-    if (row.rtb + row.capacityRequested > maxAllowed) {
-      // Determine which field was changed
-      const rtbChanged = row.rtb !== this.lastValidRtb[index];
-      const ctbChanged =
-        row.capacityRequested !== this.lastValidCapacityRequested[index];
-      if (rtbChanged) {
-        row.rtb = maxAllowed - row.capacityRequested;
-        this.lastValidRtb[index] = row.rtb;
-        this.messageService.add({
-          severity: 'warn',
-          summary: 'Validation',
-          detail:
-            'RTB + CTB cannot exceed Forecasted Capacity. Value adjusted.',
-        });
-      } else if (ctbChanged) {
-        row.capacityRequested = maxAllowed - row.rtb;
-        this.lastValidCapacityRequested[index] = row.capacityRequested;
-        this.messageService.add({
-          severity: 'warn',
-          summary: 'Validation',
-          detail:
-            'RTB + CTB cannot exceed Forecasted Capacity. Value adjusted.',
-        });
+  getRowTotal(row: ForecastRow): number {
+    const label = row.forecastColumns[0].rowLabel;
+    if (label === 'Remaining Capacity') {
+      // Find the corresponding rows
+      const forecastedRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel?.includes('Forecasted'));
+      const rtbRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel === 'RTB');
+      const ctbRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)');
+      let total = 0;
+      if (forecastedRow && rtbRow && ctbRow) {
+        for (let i = 2; i < row.forecastColumns.length; i++) {
+          const forecasted = forecastedRow.forecastColumns[i]?.amount || 0;
+          const rtb = rtbRow.forecastColumns[i]?.amount || 0;
+          const ctb = ctbRow.forecastColumns[i]?.amount || 0;
+          total += forecasted - rtb - ctb;
+        }
       }
-    } else {
-      this.lastValidRtb[index] = row.rtb;
-      this.lastValidCapacityRequested[index] = row.capacityRequested;
+      return total;
     }
-    row.remainingCapacity =
-      row.forecastedCapacity - row.rtb - row.capacityRequested;
+    // RTB and CTB: sum all editable columns (i > 1)
+    return row.forecastColumns
+      .slice(2)
+      .reduce((sum, col) => sum + (typeof col.amount === 'number' ? col.amount : 0), 0);
   }
 
-  saveRows() {
-    // Save all rows to the store
-    this.store.dispatch(CapacityActions.saveCapacity({ rows: this.rowsLocal }));
+  getRemainingCapacityAmount(monthIdx: number): number {
+    // monthIdx is the index in forecastColumns
+    const forecastedRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel?.includes('Forecasted'));
+    const rtbRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel === 'RTB');
+    const ctbRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)');
+    if (forecastedRow && rtbRow && ctbRow) {
+      const forecasted = forecastedRow.forecastColumns[monthIdx]?.amount || 0;
+      const rtb = rtbRow.forecastColumns[monthIdx]?.amount || 0;
+      const ctb = ctbRow.forecastColumns[monthIdx]?.amount || 0;
+      return forecasted - rtb - ctb;
+    }
+    return 0;
+  }
+  currentMonth: number = new Date().getMonth() + 1;
+  currentYear: number = new Date().getFullYear();
+  isEditable(
+    rowLabel: string | null,
+    month: number | null,
+    year: number | null
+  ): boolean {
+    // Only RTB and CTB rows
+    if (rowLabel !== 'RTB' && rowLabel !== 'Capacity Requested by (CTB)') {
+      return false;
+    }
+    // Only editable for current or future months
+    if (month == null || year == null) {
+      return false;
+    }
+    if (year > this.currentYear) {
+      return true;
+    }
+    if (year === this.currentYear && month >= this.currentMonth) {
+      return true;
+    }
+    return false;
+  }
+  forecastRows: ForecastRow[] = [];
+  columns: string[] = [];
+
+  constructor(private http: HttpClient, private messageService: MessageService) {}
+
+  ngOnInit() {
+    this.http
+      .get<any>('assets/capacity_forecast_24_months.json')
+      .subscribe((data) => {
+        // If your API returns an array, adjust accordingly
+        // If it returns an object with result.forecastRows, adjust as below
+        const forecastRows =
+          data.result?.forecastRows || data.forecastRows || data;
+        this.forecastRows = forecastRows;
+        if (
+          this.forecastRows.length > 0 &&
+          this.forecastRows[0] &&
+          Array.isArray(this.forecastRows[0].forecastColumns)
+        ) {
+          this.columns = this.forecastRows[0].forecastColumns.map(
+            (col: any) => col.columnLabel || col.rowLabel || ''
+          );
+        } else {
+          this.columns = [];
+        }
+      });
   }
 
-  ngOnDestroy() {
-    if (this.rowsSub) this.rowsSub.unsubscribe();
+  // Example: Calculate total for a column index
+  getTotalForColumn(colIdx: number): number {
+    return this.forecastRows.reduce((sum: number, row: ForecastRow) => {
+      const col = row.forecastColumns[colIdx];
+      return sum + (col && typeof col.amount === 'number' ? col.amount : 0);
+    }, 0);
   }
 
-  updateRow(index: number, row: CapacityRow) {
-    const updatedRow: CapacityRow = {
-      ...row,
-      remainingCapacity:
-        row.forecastedCapacity - row.rtb - row.capacityRequested,
-    };
-    this.store.dispatch(CapacityActions.updateRow({ index, row: updatedRow }));
-  }
+  // Add more calculation methods as needed, using forecastRows
 
-  onSave(rows: CapacityRow[]) {
-    this.store.dispatch(CapacityActions.saveCapacity({ rows }));
-  }
-
-  setSearch(search: string) {
-    this.store.dispatch(CapacityActions.setSearch({ search }));
-  }
-
-  // When a value in an extra CTB row is increased, add 1 to the right cell
-  onExtraCtbInput(rowIdx: number, colIdx: number, event: any) {
-    const value = Number(event.target.value);
-    if (isNaN(value) || value < 0) { return; }
-    const row = this.extraCtbRows[rowIdx];
-    // Only act if the value was increased
-    if (value > (row.values[colIdx] ?? 0)) {
-      if (colIdx + 1 < row.values.length) {
-        row.values[colIdx + 1] = Number(row.values[colIdx + 1] || 0) + 1;
+  getMaxAllowed(row: ForecastRow, monthIdx: number): number {
+    // Only applies to RTB and CTB rows
+    const label = row.forecastColumns[0].rowLabel;
+    if (label === 'RTB' || label === 'Capacity Requested by (CTB)') {
+      const forecastedRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel?.includes('Forecasted'));
+      const rtbRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel === 'RTB');
+      const ctbRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)');
+      if (forecastedRow && rtbRow && ctbRow) {
+        const forecasted = forecastedRow.forecastColumns[monthIdx]?.amount || 0;
+        const other = label === 'RTB'
+          ? ctbRow.forecastColumns[monthIdx]?.amount || 0
+          : rtbRow.forecastColumns[monthIdx]?.amount || 0;
+        return forecasted - other;
       }
     }
-    row.values[colIdx] = value;
-    // Update total for this row
-    row.total = row.values.reduce((a: number, b: number) => a + (Number(b) || 0), 0);
+    return 999999; // fallback for other rows
   }
 }

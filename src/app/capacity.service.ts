@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, forkJoin } from 'rxjs';
-import { CapacityRow } from './capacity-planner.component';
+// import { CapacityRow } from './capacity-planner.component';
 
 @Injectable({ providedIn: 'root' })
 export class CapacityService {
@@ -9,11 +9,11 @@ export class CapacityService {
 
   constructor(private http: HttpClient) {}
 
-  load(): Observable<CapacityRow[]> {
-    return this.http.get<CapacityRow[]>(this.apiUrl);
+  load(): Observable<any[]> {
+    return this.http.get<any[]>(this.apiUrl);
   }
 
-  save(rows: CapacityRow[]): Observable<any> {
+  save(rows: any[]): Observable<any> {
     // PATCH each row individually by index
     const requests = rows.map((row, i) =>
       this.http.patch(`${this.apiUrl}/${i + 1}`, row)

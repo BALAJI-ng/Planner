@@ -1,9 +1,9 @@
 import { createReducer, on } from '@ngrx/store';
 import * as CapacityActions from './capacity.actions';
-import { CapacityRow } from '../capacity-planner.component';
+// import { CapacityRow } from '../capacity-planner.component';
 
 export interface CapacityState {
-  rows: CapacityRow[];
+  rows: any[];
   search: string;
   loading: boolean;
   error: any;
