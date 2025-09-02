@@ -1,3 +1,5 @@
+import * as ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 // New interfaces for API response
 export interface ForecastColumn {
   id: number;
@@ -31,25 +33,99 @@ import { MessageService } from 'primeng/api';
   styleUrls: ['./capacity-planner.component.scss'],
 })
 export class CapacityPlannerComponent implements OnInit {
-  isInputDisabled(row: ForecastRow, col: ForecastColumn, monthIdx: number): boolean {
+  exportToExcel() {
+    // Prepare header
+    const header = ['Row Label', 'Total'];
+    // Helper to format month-year as 'Feb-2025'
+    const monthNames = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    if (this.forecastRows.length > 0) {
+      this.forecastRows[0].forecastColumns.slice(1).forEach((col) => {
+        if (col.month != null && col.year != null) {
+          const monthIdx = Number(col.month) - 1;
+          const monthLabel = monthNames[monthIdx] || col.month;
+          header.push(`${monthLabel}-${col.year}`);
+        }
+      });
+    }
+    // Prepare data rows
+    const dataRows = this.forecastRows.map((row) => {
+      const rowArr: any[] = [];
+      rowArr.push(row.forecastColumns[0].rowLabel);
+      // Total column
+      if (row.forecastColumns[0].rowLabel === 'Remaining Capacity') {
+        rowArr.push(this.getRowTotal(row));
+      } else if (this.isTotalDynamic(row.forecastColumns[0].rowLabel)) {
+        rowArr.push(this.getRowTotal(row));
+      } else {
+        rowArr.push(row.forecastColumns[1]?.amount != null ? row.forecastColumns[1].amount : 0);
+      }
+      // Month columns
+      row.forecastColumns.slice(1).forEach((col, idx) => {
+        if (col.month == null || col.year == null) {
+          return;
+        }
+        if (row.forecastColumns[0].rowLabel === 'Remaining Capacity') {
+          rowArr.push(this.getRemainingCapacityAmount(idx + 1));
+        } else {
+          rowArr.push(col.amount != null ? col.amount : 0);
+        }
+      });
+      return rowArr;
+    });
+
+    // Create workbook and worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Capacity Plan');
+    worksheet.addRow(header);
+    dataRows.forEach((row) => worksheet.addRow(row));
+
+    // Add black border to all cells
+    worksheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF000000' } },
+          left: { style: 'thin', color: { argb: 'FF000000' } },
+          bottom: { style: 'thin', color: { argb: 'FF000000' } },
+          right: { style: 'thin', color: { argb: 'FF000000' } },
+        };
+      });
+    });
+
+    workbook.xlsx.writeBuffer().then((buffer) => {
+      saveAs(new Blob([buffer]), 'capacity_plan.xlsx');
+    });
+  }
+  isInputDisabled(
+    row: ForecastRow,
+    col: ForecastColumn,
+    monthIdx: number
+  ): boolean {
     // Always allow decrease
     return false;
   }
 
-  onAmountChange(row: ForecastRow, col: ForecastColumn, monthIdx: number, newValue: number) {
+  onAmountChange(
+    row: ForecastRow,
+    col: ForecastColumn,
+    monthIdx: number,
+    newValue: number
+  ) {
     const max = this.getMaxAllowed(row, monthIdx);
-      if (newValue < 0) {
-        col.amount = null;
-        return;
-      }
-      if (newValue > max) {
-        this.messageService.add({
-          severity: 'warn',
-          summary: 'Max Capacity',
-          detail: 'Maximum capacity reached!',
-          life: 2000
-        });
-        col.amount = null;
+    if (newValue < 0) {
+      col.amount = null;
+      return;
+    }
+    if (newValue > max) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Max Capacity',
+        detail: 'Maximum capacity reached!',
+        life: 2000,
+      });
+      col.amount = null;
       return;
     }
     col.amount = newValue;
@@ -67,9 +143,15 @@ export class CapacityPlannerComponent implements OnInit {
     const label = row.forecastColumns[0].rowLabel;
     if (label === 'Remaining Capacity') {
       // Find the corresponding rows
-      const forecastedRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel?.includes('Forecasted'));
-      const rtbRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel === 'RTB');
-      const ctbRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)');
+      const forecastedRow = this.forecastRows.find((r) =>
+        r.forecastColumns[0].rowLabel?.includes('Forecasted')
+      );
+      const rtbRow = this.forecastRows.find(
+        (r) => r.forecastColumns[0].rowLabel === 'RTB'
+      );
+      const ctbRow = this.forecastRows.find(
+        (r) => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)'
+      );
       let total = 0;
       if (forecastedRow && rtbRow && ctbRow) {
         for (let i = 2; i < row.forecastColumns.length; i++) {
@@ -84,14 +166,23 @@ export class CapacityPlannerComponent implements OnInit {
     // RTB and CTB: sum all editable columns (i > 1)
     return row.forecastColumns
       .slice(2)
-      .reduce((sum, col) => sum + (typeof col.amount === 'number' ? col.amount : 0), 0);
+      .reduce(
+        (sum, col) => sum + (typeof col.amount === 'number' ? col.amount : 0),
+        0
+      );
   }
 
   getRemainingCapacityAmount(monthIdx: number): number {
     // monthIdx is the index in forecastColumns
-    const forecastedRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel?.includes('Forecasted'));
-    const rtbRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel === 'RTB');
-    const ctbRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)');
+    const forecastedRow = this.forecastRows.find((r) =>
+      r.forecastColumns[0].rowLabel?.includes('Forecasted')
+    );
+    const rtbRow = this.forecastRows.find(
+      (r) => r.forecastColumns[0].rowLabel === 'RTB'
+    );
+    const ctbRow = this.forecastRows.find(
+      (r) => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)'
+    );
     if (forecastedRow && rtbRow && ctbRow) {
       const forecasted = forecastedRow.forecastColumns[monthIdx]?.amount || 0;
       const rtb = rtbRow.forecastColumns[monthIdx]?.amount || 0;
@@ -126,7 +217,10 @@ export class CapacityPlannerComponent implements OnInit {
   forecastRows: ForecastRow[] = [];
   columns: string[] = [];
 
-  constructor(private http: HttpClient, private messageService: MessageService) {}
+  constructor(
+    private http: HttpClient,
+    private messageService: MessageService
+  ) {}
 
   ngOnInit() {
     this.http
@@ -165,14 +259,21 @@ export class CapacityPlannerComponent implements OnInit {
     // Only applies to RTB and CTB rows
     const label = row.forecastColumns[0].rowLabel;
     if (label === 'RTB' || label === 'Capacity Requested by (CTB)') {
-      const forecastedRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel?.includes('Forecasted'));
-      const rtbRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel === 'RTB');
-      const ctbRow = this.forecastRows.find(r => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)');
+      const forecastedRow = this.forecastRows.find((r) =>
+        r.forecastColumns[0].rowLabel?.includes('Forecasted')
+      );
+      const rtbRow = this.forecastRows.find(
+        (r) => r.forecastColumns[0].rowLabel === 'RTB'
+      );
+      const ctbRow = this.forecastRows.find(
+        (r) => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)'
+      );
       if (forecastedRow && rtbRow && ctbRow) {
         const forecasted = forecastedRow.forecastColumns[monthIdx]?.amount || 0;
-        const other = label === 'RTB'
-          ? ctbRow.forecastColumns[monthIdx]?.amount || 0
-          : rtbRow.forecastColumns[monthIdx]?.amount || 0;
+        const other =
+          label === 'RTB'
+            ? ctbRow.forecastColumns[monthIdx]?.amount || 0
+            : rtbRow.forecastColumns[monthIdx]?.amount || 0;
         return forecasted - other;
       }
     }

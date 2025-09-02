@@ -27,32 +27,68 @@
               [ngClass]="col.cellCss"
             >
               <!-- Remaining Capacity: show calculated total -->
-              <ng-container *ngIf="row.forecastColumns[0].rowLabel === 'Remaining Capacity'">
+              <ng-container
+                *ngIf="row.forecastColumns[0].rowLabel === 'Remaining Capacity'"
+              >
                 {{ getRowTotal(row) }}
               </ng-container>
               <!-- RTB and CTB: show calculated total -->
-              <ng-container *ngIf="isTotalDynamic(row.forecastColumns[0].rowLabel) && row.forecastColumns[0].rowLabel !== 'Remaining Capacity'">
+              <ng-container
+                *ngIf="
+                  isTotalDynamic(row.forecastColumns[0].rowLabel) &&
+                  row.forecastColumns[0].rowLabel !== 'Remaining Capacity'
+                "
+              >
                 {{ getRowTotal(row) }}
               </ng-container>
               <!-- Other rows: show static value -->
-              <ng-container *ngIf="!isTotalDynamic(row.forecastColumns[0].rowLabel)">
+              <ng-container
+                *ngIf="!isTotalDynamic(row.forecastColumns[0].rowLabel)"
+              >
                 {{ col.amount != null ? col.amount : 0 }}
               </ng-container>
             </td>
             <td *ngIf="i > 1" [ngClass]="col.cellCss">
               <!-- Editable for RTB and CTB rows, current or future month -->
-              <ng-container *ngIf="isEditable(row.forecastColumns[0].rowLabel, col.month, col.year)">
-                <input type="number" [ngModel]="col.amount"
+              <ng-container
+                *ngIf="
+                  isEditable(
+                    row.forecastColumns[0].rowLabel,
+                    col.month,
+                    col.year
+                  )
+                "
+              >
+                <input
+                  type="number"
+                  [ngModel]="col.amount"
                   (ngModelChange)="onAmountChange(row, col, i, $event)"
-                  [min]="0" />
+                  [min]="0"
+                />
               </ng-container>
-              <ng-container *ngIf="!isEditable(row.forecastColumns[0].rowLabel, col.month, col.year)">
+              <ng-container
+                *ngIf="
+                  !isEditable(
+                    row.forecastColumns[0].rowLabel,
+                    col.month,
+                    col.year
+                  )
+                "
+              >
                 <!-- Remaining Capacity: show calculated value -->
-                <ng-container *ngIf="row.forecastColumns[0].rowLabel === 'Remaining Capacity'">
+                <ng-container
+                  *ngIf="
+                    row.forecastColumns[0].rowLabel === 'Remaining Capacity'
+                  "
+                >
                   {{ getRemainingCapacityAmount(i) }}
                 </ng-container>
                 <!-- Other rows: show static value -->
-                <ng-container *ngIf="row.forecastColumns[0].rowLabel !== 'Remaining Capacity'">
+                <ng-container
+                  *ngIf="
+                    row.forecastColumns[0].rowLabel !== 'Remaining Capacity'
+                  "
+                >
                   {{ col.amount != null ? col.amount : 0 }}
                 </ng-container>
               </ng-container>
@@ -62,5 +98,13 @@
       </tbody>
     </table>
   </div>
+  <button
+    pButton
+    type="button"
+    label="Export to Excel"
+    icon="pi pi-file-excel"
+    (click)="exportToExcel()"
+    style="margin-bottom: 1rem"
+  ></button>
   <p-toast></p-toast>
 </div>
