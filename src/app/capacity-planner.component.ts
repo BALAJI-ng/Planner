@@ -222,7 +222,18 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     // Prepare header for main table
     const header = ['Row Label', 'Total'];
     const monthNames = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     if (this.forecastRows.length > 0) {
       this.forecastRows[0].forecastColumns.slice(1).forEach((col) => {
@@ -462,23 +473,25 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
   ) {}
 
   ngOnInit() {
-    this.http.get<any>('http://localhost:3001/result').subscribe((data) => {
-      // JSON Server returns { result: { forecastRows: [...] } }
-      const forecastRows =
-        data.result?.forecastRows || data.forecastRows || data;
-      this.forecastRows = forecastRows;
-      if (
-        this.forecastRows.length > 0 &&
-        this.forecastRows[0] &&
-        Array.isArray(this.forecastRows[0].forecastColumns)
-      ) {
-        this.columns = this.forecastRows[0].forecastColumns.map(
-          (col: any) => col.columnLabel || col.rowLabel || ''
-        );
-      } else {
-        this.columns = [];
-      }
-    });
+    this.http
+      .get<any>('http://localhost:3001/capacityTop')
+      .subscribe((data) => {
+        // JSON Server returns { result: { forecastRows: [...] } }
+        const forecastRows =
+          data.result?.forecastRows || data.forecastRows || data;
+        this.forecastRows = forecastRows;
+        if (
+          this.forecastRows.length > 0 &&
+          this.forecastRows[0] &&
+          Array.isArray(this.forecastRows[0].forecastColumns)
+        ) {
+          this.columns = this.forecastRows[0].forecastColumns.map(
+            (col: any) => col.columnLabel || col.rowLabel || ''
+          );
+        } else {
+          this.columns = [];
+        }
+      });
   }
 
   // Example: Calculate total for a column index

@@ -23,9 +23,8 @@
           <th
             class="sticky-col sticky-label"
             style="width: 260px; min-width: 260px; max-width: 260px"
-          >
-            Row Label
-          </th>
+          ></th>
+          <th style="width: 180px; min-width: 180px; max-width: 180px"></th>
           <ng-container *ngFor="let column of columns; let i = index">
             <th *ngIf="i === 1" class="sticky-total">{{ column }}</th>
             <th *ngIf="i > 1">{{ column }}</th>
@@ -34,9 +33,10 @@
       </ng-template>
       <ng-template pTemplate="body" let-row>
         <tr>
-          <td class="sticky-col sticky-label">
+          <td colspan="2" class="sticky-col sticky-label">
             {{ row.forecastColumns[0].rowLabel }}
           </td>
+
           <ng-container *ngFor="let col of row.forecastColumns; let i = index">
             <td *ngIf="i === 1" class="sticky-total">
               <ng-container
@@ -136,13 +136,17 @@
           margin-bottom: 1rem;
         "
       >
-        <input
-          pInputText
-          type="text"
-          placeholder="Search CTB Name..."
-          [(ngModel)]="ctbSearchText"
-          style="width: 240px"
-        />
+        <span class="ctb-search-wrapper">
+          <input
+            pInputText
+            type="text"
+            placeholder="Search CTB Name..."
+            [(ngModel)]="ctbSearchText"
+            class="ctb-search-box"
+            style="width: 240px"
+          />
+          <i class="pi pi-search ctb-search-icon"></i>
+        </span>
         <button
           pButton
           type="button"
@@ -166,8 +170,23 @@
             >
               CTB Name
             </th>
-            <th class="sticky-status">Status</th>
-            <th class="sticky-total">Total</th>
+            <th
+              class="sticky-status"
+              style="width: 150px; min-width: 150px; max-width: 150px"
+            >
+              Status
+            </th>
+            <th
+              class="sticky-total"
+              style="
+                width: 100px;
+                min-width: 100px;
+                max-width: 100px;
+                text-align: center;
+              "
+            >
+              Total
+            </th>
             <ng-container *ngFor="let column of columns; let i = index">
               <th *ngIf="i > 1">{{ column }}</th>
             </ng-container>
@@ -231,9 +250,9 @@
               </td>
               <td
                 style="
-                  width: 260px;
-                  min-width: 160px;
-                  max-width: 160px;
+                  width: 150px;
+                  min-width: 150px;
+                  max-width: 150px;
                   text-align: left;
                 "
               >
@@ -250,19 +269,19 @@
               </td>
               <td
                 style="
-                  width: 120px;
-                  min-width: 120px;
-                  max-width: 120px;
-                  text-align: right;
+                  width: 100px;
+                  min-width: 100px;
+                  max-width: 100px;
+                  text-align: center;
                 "
               >
                 <span
                   style="
-                    padding: 2px 8px;
+                    padding: 2px 4px;
                     border-radius: 4px;
                     display: inline-block;
-                    min-width: 60px;
-                    text-align: right;
+                    min-width: 40px;
+                    text-align: center;
                   "
                 >
                   {{ getCTBTotal(ctb) }}</span
