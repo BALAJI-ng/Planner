@@ -1,3 +1,19 @@
+.ctb-search-wrapper {
+  position: relative;
+  display: inline-block;
+}
+.ctb-search-box {
+  padding-left: 2.2rem !important;
+}
+.ctb-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #a52a2a;
+  font-size: 1.4rem;
+  pointer-events: none;
+}
 .excel-btn.p-button,
 .excel-btn.p-button:enabled,
 .excel-btn.p-button:active,
@@ -327,15 +343,22 @@
 }
 
 .ctb-status-dropdown {
-  width: 180px !important;
-  min-width: 180px !important;
-  max-width: 180px !important;
+  width: 150px !important;
+  min-width: 150px !important;
+  max-width: 150px !important;
 }
 
 ::ng-deep .p-dropdown {
-  width: 180px !important;
-  min-width: 180px !important;
-  max-width: 180px !important;
+  width: 150px !important;
+  min-width: 150px !important;
+  max-width: 150px !important;
+  height: 36px; /* Adjust height */
+}
+::ng-deep .p-dropdown .p-dropdown-label {
+  padding: 0.3rem 0.5rem; /* Adjust label padding */
+}
+::ng-deep .p-dropdown .p-dropdown-trigger {
+  width: 2rem; /* Adjust trigger width */
 }
 
 ::ng-deep .p-dropdown-panel {
