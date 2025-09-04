@@ -32,6 +32,32 @@ export interface ForecastRow {
   styleUrls: ['./capacity-planner.component.scss'],
 })
 export class CapacityPlannerComponent implements OnInit, AfterViewInit {
+  getCTBMaxAllowed(ctbIdx: number, colIdx: number): number {
+    const forecastedRow = this.forecastRows.find((r: any) =>
+      r.forecastColumns[0].rowLabel?.includes('Forecasted')
+    );
+    const rtbRow = this.forecastRows.find(
+      (r: any) => r.forecastColumns[0].rowLabel === 'RTB'
+    );
+    if (
+      forecastedRow &&
+      rtbRow &&
+      forecastedRow.forecastColumns[colIdx + 1] &&
+      rtbRow.forecastColumns[colIdx + 1]
+    ) {
+      const maxValue =
+        (forecastedRow.forecastColumns[colIdx + 1].amount || 0) -
+        (rtbRow.forecastColumns[colIdx + 1].amount || 0);
+      let sumOtherRows = 0;
+      for (let i = 0; i < this.ctbRows.length; i++) {
+        if (i !== ctbIdx) {
+          sumOtherRows += this.ctbRows[i].columns[colIdx].amount || 0;
+        }
+      }
+      return Math.max(0, maxValue - sumOtherRows);
+    }
+    return 0;
+  }
   getForecastedCapacityTotal(row: ForecastRow): number {
     // Slices from index 2 to skip label and total columns
     return row.forecastColumns
@@ -134,28 +160,35 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
 
   onCTBAmountChange(ctbIdx: number, colIdx: number, value: number) {
     // Restrict negative values
-    let newValue = value < 0 ? 0 : value;
+    let inputValue = value < 0 ? 0 : value;
     // Get Forecasted Capacity and RTB for this month
-    const forecastedRow = this.forecastRows.find(
-      (r) => r.forecastColumns[0].rowLabel?.includes('Forecasted')
+    const forecastedRow = this.forecastRows.find((r) =>
+      r.forecastColumns[0].rowLabel?.includes('Forecasted')
     );
     const rtbRow = this.forecastRows.find(
       (r) => r.forecastColumns[0].rowLabel === 'RTB'
     );
-    if (forecastedRow && rtbRow && forecastedRow.forecastColumns[colIdx + 1] && rtbRow.forecastColumns[colIdx + 1]) {
-      const maxValue = (forecastedRow.forecastColumns[colIdx + 1].amount || 0) - (rtbRow.forecastColumns[colIdx + 1].amount || 0);
-      // Calculate sum of all CTB rows for this month, including the new value
-      let sum = 0;
+    let newValue = inputValue;
+    if (
+      forecastedRow &&
+      rtbRow &&
+      forecastedRow.forecastColumns[colIdx + 1] &&
+      rtbRow.forecastColumns[colIdx + 1]
+    ) {
+      const maxValue =
+        (forecastedRow.forecastColumns[colIdx + 1].amount || 0) -
+        (rtbRow.forecastColumns[colIdx + 1].amount || 0);
+      // Calculate sum of all CTB rows for this month except the current row
+      let sumOtherRows = 0;
       for (let i = 0; i < this.ctbRows.length; i++) {
-        if (i === ctbIdx) {
-          sum += newValue;
-        } else {
-          sum += this.ctbRows[i].columns[colIdx].amount || 0;
+        if (i !== ctbIdx) {
+          sumOtherRows += this.ctbRows[i].columns[colIdx].amount || 0;
         }
       }
-      // Only show warning if sum exceeds allowed value
-      if (sum > maxValue) {
-        newValue = Math.max(0, maxValue - (sum - newValue));
+      // Calculate the max allowed for this input
+      const maxAllowedForInput = Math.max(0, maxValue - sumOtherRows);
+      if (inputValue > maxAllowedForInput) {
+        newValue = 0;
         this.messageService.add({
           severity: 'warn',
           summary: 'Max Capacity',
@@ -186,22 +219,10 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     }
   }
   exportToExcel() {
-    // Prepare header
+    // Prepare header for main table
     const header = ['Row Label', 'Total'];
-    // Helper to format month-year as 'Feb-2025'
     const monthNames = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     if (this.forecastRows.length > 0) {
       this.forecastRows[0].forecastColumns.slice(1).forEach((col) => {
@@ -212,12 +233,14 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
         }
       });
     }
-    // Prepare data rows
+    // Prepare data rows for main table
     const dataRows = this.forecastRows.map((row) => {
       const rowArr: any[] = [];
       rowArr.push(row.forecastColumns[0].rowLabel);
       // Total column
-      if (row.forecastColumns[0].rowLabel === 'Remaining Capacity') {
+      if (row.forecastColumns[0].rowLabel === 'Forecasted Capacity') {
+        rowArr.push(this.getForecastedCapacityTotal(row));
+      } else if (row.forecastColumns[0].rowLabel === 'Remaining Capacity') {
         rowArr.push(this.getRowTotal(row));
       } else if (this.isTotalDynamic(row.forecastColumns[0].rowLabel)) {
         rowArr.push(this.getRowTotal(row));
@@ -242,13 +265,44 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
       return rowArr;
     });
 
-    // Create workbook and worksheet
+    // Prepare CTB Details header
+    const ctbHeader = ['CTB Name', 'Total'];
+    if (this.forecastRows.length > 0) {
+      this.forecastRows[0].forecastColumns.slice(1).forEach((col) => {
+        if (col.month != null && col.year != null) {
+          const monthIdx = Number(col.month) - 1;
+          const monthLabel = monthNames[monthIdx] || col.month;
+          ctbHeader.push(`${monthLabel}-${col.year}`);
+        }
+      });
+    }
+    // Prepare CTB Details data rows
+    const ctbDataRows = this.ctbRows.map((ctb) => {
+      const rowArr: any[] = [];
+      rowArr.push(ctb.name || '');
+      // Total
+      rowArr.push(this.getCTBTotal(ctb));
+      // Month columns (skip the first column, which is Total)
+      for (let i = 1; i < ctb.columns.length; i++) {
+        rowArr.push(ctb.columns[i].amount != null ? ctb.columns[i].amount : 0);
+      }
+      return rowArr;
+    });
+
+    // Create workbook and worksheets
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Capacity Plan');
     worksheet.addRow(header);
     dataRows.forEach((row) => worksheet.addRow(row));
-
-    // Add black border to all cells
+    // Add a blank row between tables
+    worksheet.addRow([]);
+    // Add CTB Details header and data
+    worksheet.addRow(ctbHeader);
+    if (this.ctbRows.length > 0) {
+      ctbDataRows.forEach((row) => worksheet.addRow(row));
+    } else {
+      worksheet.addRow(['No CTB records found']);
+    }
     worksheet.eachRow((row) => {
       row.eachCell((cell) => {
         cell.border = {
@@ -391,6 +445,10 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
       return true;
     }
     if (year === this.currentYear && month >= this.currentMonth) {
+      return true;
+    }
+    // Also allow editing for the current month and year
+    if (year === this.currentYear && month === this.currentMonth) {
       return true;
     }
     return false;
