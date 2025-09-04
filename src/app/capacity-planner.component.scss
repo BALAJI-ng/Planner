@@ -1,17 +1,71 @@
+.excel-btn.p-button,
+.excel-btn.p-button:enabled,
+.excel-btn.p-button:active,
+.excel-btn.p-button:focus {
+  background: #21a366 !important;
+  color: #fff !important;
+  border: none !important;
+  font-weight: bold;
+  box-shadow: 0 1px 4px rgba(33,163,102,0.08);
+}
+.excel-btn.p-button .pi-file-excel {
+  color: #fff !important;
+}
+// Ensure CTB table has a minimum height for better dropdown usability
+#ctb-table .p-datatable-scrollable-body {
+  min-height: 400px;
+    overflow: visible !important;
+    position: relative !important;
+}
+// Fix dropdown clipping by overriding PrimeNG table wrapper overflow
+:host{
+  ::ng-deep .ctb-table .p-datatable-wrapper, ::ng-deep .ctb-table .p-datatable-scrollable-body {
+    overflow: visible !important;
+    position: relative !important;
+  }
+}
+// .p-datatable > .p-datatable-wrapper {
+//   overflow: visible !important;
+//   position: relative !important;
+// }
 /* Sticky column styles for table */
 .sticky-col {
   position: sticky;
   left: 0;
   background: #fff;
-  z-index: 2;
+  z-index: 10;
+  box-shadow: none;
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
 }
+
 .sticky-label {
   left: 0;
-  z-index: 3;
+  z-index: 11;
+  box-shadow: none;
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
 }
 .sticky-total {
-  left: 150px; /* Adjust based on column width */
-  z-index: 3;
+  left: 200px; /* Match row label width */
+  z-index: 12;
+  box-shadow: none;
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
+}
+.ctb-summary-cell {
+  background: #e0e0e0;
+  color: #888;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 8px 12px;
+  text-align: center;
+  min-width: 80px;
+  user-select: none;
+  /* pointer-events: none; */
 }
 .ctb-summary-cell {
   background: #e0e0e0;
@@ -24,18 +78,6 @@
   user-select: none;
   pointer-events: none;
 }
-.ctb-summary-cell {
-  background: #e0e0e0;
-  color: #888;
-  font-weight: 600;
-  border-radius: 6px;
-  padding: 8px 12px;
-  text-align: center;
-  min-width: 80px;
-  user-select: none;
-  pointer-events: none;
-}
-.capacity-planner {
   .section-header {
     display: flex;
     align-items: center;
@@ -80,9 +122,9 @@
   .plan-table {
     width: max-content;
     min-width: 100%;
-    border-collapse: separate;
+  border-collapse: collapse;
     border-spacing: 0;
-    background: linear-gradient(90deg, #fff 80%, #f9f9f9 100%);
+  background: #f7f8fa;
     border-radius: 8px;
     overflow: hidden;
     overflow: visible !important;
@@ -91,6 +133,28 @@
       padding: 0.4rem 0.7rem;
       border-bottom: 2px solid #f3f3f3;
       transition: background 0.2s, color 0.2s;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+    .sticky-total {
+      position: sticky;
+      left: 200px; /* Match row label width */
+      z-index: 100;
+      background: #fafafa;
+      box-shadow: none;
+      border-radius: 0;
+      margin: 0;
+      padding: 0;
+    }
+    th.sticky-total, td.sticky-total {
+      position: sticky;
+      left: 200px;
+      z-index: 100;
+      background: #fafafa;
+      box-shadow: none;
+      border-radius: 0;
+      margin: 0;
+      padding: 0;
     }
     th {
       background: #fafafa;
@@ -100,21 +164,36 @@
       font-size: 1.05rem;
       letter-spacing: 0.2px;
       text-shadow: 0 1px 0 #fff;
+      white-space: nowrap;
+      vertical-align: middle;
     }
     .row-label {
       text-align: left;
       font-weight: bold;
       color: #222;
       background: #fff;
-      border-right: 3px solid #f3f3f3;
+      border-right: none;
       position: relative;
-      min-width: 180px;
+      min-width: 200px;
+      max-width: 200px;
+      width: 200px;
       font-size: 1.05rem;
-        .forecasted-row .forecasted-label,
-        .forecasted-row td {
-          color: #b22222; /* Same red as RTB */
-          font-weight: 600;
-        }
+      margin-right: 0;
+      padding-right: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    td.row-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      /* nested selectors for row-label */
+      .forecasted-row .forecasted-label,
+      .forecasted-row td {
+        color: #b22222; /* Same red as RTB */
+        font-weight: 600;
+      }
       /* border-left: 4px solid #a52a2a; */
       /* border-bottom: 3px solid #a52a2a; */
       color: #a52a2a !important;
@@ -125,6 +204,9 @@
       /* border-bottom: 3px solid #fbc02d; */
       color: #a52a2a !important;
       background: linear-gradient(90deg, #fff, #fffde7 80%);
+    left: 118px; /* Match row label width */
+      margin-left: 0; /* Removed margin */
+      padding-left: 0; /* Removed padding */
     }
     .ctb-label {
       /* border-left: 4px solid #ff9800; */
@@ -161,7 +243,7 @@
       padding: 2px 6px;
       text-align: center;
       font-weight: bold;
-      background: #fffde7;
+      background: #fff;
       color: #222;
       box-shadow: 0 1px 2px rgba(0,0,0,0.04);
       transition: border 0.2s, box-shadow 0.2s;
@@ -171,7 +253,12 @@
       &:focus {
         border: 1.5px solid #ff9800;
         box-shadow: 0 2px 8px #ffe0b2;
-        background: #fff8e1;
+        background: #fff;
+      }
+      &:disabled {
+        background: #f3f3f3 !important;
+        color: #888 !important;
+        border: 1px solid #e0e0e0 !important;
       }
     }
     input[readonly] {
@@ -228,7 +315,7 @@
     border-radius: 6px;
     padding: 1.2rem 0;
   }
-}
+
 
 .extra-ctb-row {
   position: relative;
@@ -252,11 +339,13 @@
 }
 
 ::ng-deep .p-dropdown-panel {
-  z-index: 99999 !important;
-  min-width: 180px !important;
-  width: 180px !important;
-  max-width: 180px !important;
-  left: 0 !important;
+  z-index: 9999 !important;
+  position: absolute !important;
   border-radius: 10px !important;
   box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+}
+// Ensure PrimeNG dropdown panel appears above other elements
+::ng-deep .p-dropdown-panel {
+  z-index: 9999 !important;
+  position: absolute !important;
 }

@@ -1,110 +1,299 @@
 <div class="capacity-planner">
   <div class="section-header">
     <span class="section-title">Capacity Plan</span>
+    <button
+      pButton
+      type="button"
+      label="Export to Excel"
+      icon="pi pi-file-excel"
+      (click)="exportToExcel()"
+      class="excel-btn"
+      style="margin-bottom: 1rem"
+    ></button>
   </div>
   <div *ngIf="forecastRows.length > 0">
-    <table class="plan-table">
-      <thead>
+    <p-table
+      [value]="forecastRows"
+      class="plan-table"
+      [scrollable]="true"
+      [scrollHeight]="'auto'"
+    >
+      <ng-template pTemplate="header">
         <tr>
-          <th class="sticky-col sticky-label">Row Label</th>
+          <th
+            class="sticky-col sticky-label"
+            style="width: 260px; min-width: 260px; max-width: 260px"
+          >
+            Row Label
+          </th>
           <ng-container *ngFor="let column of columns; let i = index">
-            <th *ngIf="i === 1" class="sticky-col sticky-total">
-              {{ column }}
-            </th>
+            <th *ngIf="i === 1" class="sticky-total">{{ column }}</th>
             <th *ngIf="i > 1">{{ column }}</th>
           </ng-container>
         </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let row of forecastRows; let rowIdx = index">
+      </ng-template>
+      <ng-template pTemplate="body" let-row>
+        <tr>
           <td class="sticky-col sticky-label">
-            {{ row.forecastColumns[0].rowLabel || "" }}
+            {{ row.forecastColumns[0].rowLabel }}
           </td>
           <ng-container *ngFor="let col of row.forecastColumns; let i = index">
-            <td
-              *ngIf="i === 1"
-              class="sticky-col sticky-total"
-              [ngClass]="col.cellCss"
-            >
-              <!-- Remaining Capacity: show calculated total -->
-              <ng-container
-                *ngIf="row.forecastColumns[0].rowLabel === 'Remaining Capacity'"
-              >
-                {{ getRowTotal(row) }}
-              </ng-container>
-              <!-- RTB and CTB: show calculated total -->
+            <td *ngIf="i === 1" class="sticky-total">
               <ng-container
                 *ngIf="
-                  isTotalDynamic(row.forecastColumns[0].rowLabel) &&
-                  row.forecastColumns[0].rowLabel !== 'Remaining Capacity'
+                  row.forecastColumns[0].rowLabel === 'Forecasted Capacity';
+                  else otherTotal
                 "
               >
-                {{ getRowTotal(row) }}
+                {{ getForecastedCapacityTotal(row) }}
               </ng-container>
-              <!-- Other rows: show static value -->
-              <ng-container
-                *ngIf="!isTotalDynamic(row.forecastColumns[0].rowLabel)"
-              >
-                {{ col.amount != null ? col.amount : 0 }}
-              </ng-container>
-            </td>
-            <td *ngIf="i > 1" [ngClass]="col.cellCss">
-              <!-- Editable for RTB and CTB rows, current or future month -->
-              <ng-container
-                *ngIf="
-                  isEditable(
-                    row.forecastColumns[0].rowLabel,
-                    col.month,
-                    col.year
-                  )
-                "
-              >
-                <input
-                  type="number"
-                  [ngModel]="col.amount"
-                  (ngModelChange)="onAmountChange(row, col, i, $event)"
-                  [min]="0"
-                />
-              </ng-container>
-              <ng-container
-                *ngIf="
-                  !isEditable(
-                    row.forecastColumns[0].rowLabel,
-                    col.month,
-                    col.year
-                  )
-                "
-              >
-                <!-- Remaining Capacity: show calculated value -->
+              <ng-template #otherTotal>
                 <ng-container
                   *ngIf="
                     row.forecastColumns[0].rowLabel === 'Remaining Capacity'
                   "
                 >
-                  {{ getRemainingCapacityAmount(i) }}
+                  {{ getRowTotal(row) }}
                 </ng-container>
-                <!-- Other rows: show static value -->
                 <ng-container
                   *ngIf="
-                    row.forecastColumns[0].rowLabel !== 'Remaining Capacity'
+                    isTotalDynamic(row.forecastColumns[0].rowLabel) &&
+                    row.forecastColumns[0].rowLabel !== 'Remaining Capacity' &&
+                    row.forecastColumns[0].rowLabel !== 'Forecasted Capacity'
+                  "
+                >
+                  {{ getRowTotal(row) }}
+                </ng-container>
+                <ng-container
+                  *ngIf="
+                    !isTotalDynamic(row.forecastColumns[0].rowLabel) &&
+                    row.forecastColumns[0].rowLabel !== 'Forecasted Capacity'
                   "
                 >
                   {{ col.amount != null ? col.amount : 0 }}
                 </ng-container>
+              </ng-template>
+            </td>
+            <td *ngIf="i > 1">
+              <ng-container
+                *ngIf="
+                  row.forecastColumns[0].rowLabel === 'Remaining Capacity';
+                  else normalInput
+                "
+              >
+                <input
+                  type="number"
+                  [value]="getRemainingCapacityAmount(i)"
+                  disabled
+                  style="
+                    width: 100%;
+                    box-sizing: border-box;
+                    background-color: #eee;
+                    color: #888;
+                  "
+                />
               </ng-container>
+              <ng-template #normalInput>
+                <input
+                  type="number"
+                  [ngModel]="col.amount != null ? col.amount : 0"
+                  (ngModelChange)="onAmountChange(row, col, i, $event)"
+                  [min]="0"
+                  [disabled]="
+                    row.forecastColumns[0].rowLabel === 'Forecasted Capacity' ||
+                    row.forecastColumns[0].rowLabel ===
+                      'Capacity Requested by (CTB)' ||
+                    row.forecastColumns[0].rowLabel === 'Remaining Capacity' ||
+                    col.year < currentYear ||
+                    (col.year === currentYear && col.month < currentMonth)
+                  "
+                  [ngStyle]="
+                    row.forecastColumns[0].rowLabel === 'Forecasted Capacity' ||
+                    row.forecastColumns[0].rowLabel ===
+                      'Capacity Requested by (CTB)' ||
+                    row.forecastColumns[0].rowLabel === 'Remaining Capacity' ||
+                    col.year < currentYear ||
+                    (col.year === currentYear && col.month < currentMonth)
+                      ? { 'background-color': '#eee', color: '#888' }
+                      : {}
+                  "
+                  style="width: 100%; box-sizing: border-box"
+                />
+              </ng-template>
             </td>
           </ng-container>
         </tr>
-      </tbody>
-    </table>
+      </ng-template>
+    </p-table>
+    <!-- New CTB Table -->
+    <div style="margin-top: 2rem">
+      <h3>Capacity Requested by (CTB) Details</h3>
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        "
+      >
+        <input
+          pInputText
+          type="text"
+          placeholder="Search CTB Name..."
+          [(ngModel)]="ctbSearchText"
+          style="width: 240px"
+        />
+        <button
+          pButton
+          type="button"
+          label="Add Capacity Allocation"
+          icon="pi pi-plus"
+          (click)="addCTBRow()"
+        ></button>
+      </div>
+      <p-table
+        id="ctb-table"
+        [value]="ctbRows"
+        class="plan-table"
+        [scrollable]="true"
+        [scrollHeight]="'400px'"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th
+              class="sticky-col sticky-label"
+              style="width: 260px; min-width: 260px; max-width: 260px"
+            >
+              CTB Name
+            </th>
+            <th class="sticky-status">Status</th>
+            <th class="sticky-total">Total</th>
+            <ng-container *ngFor="let column of columns; let i = index">
+              <th *ngIf="i > 1">{{ column }}</th>
+            </ng-container>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-ctb let-ctbIdx="rowIndex">
+          <ng-container *ngIf="ctbRows.length === 0">
+            <tr>
+              <td
+                [attr.colspan]="5 + columns.length - 1"
+                style="text-align: center; color: #888; font-style: italic"
+              >
+                No records found
+              </td>
+            </tr>
+          </ng-container>
+          <ng-container
+            *ngIf="
+              !ctbSearchText ||
+              (ctb.name &&
+                ctb.name.toLowerCase().includes(ctbSearchText.toLowerCase()))
+            "
+          >
+            <tr>
+              <td
+                style="
+                  width: 160px;
+                  min-width: 160px;
+                  max-width: 160px;
+                  text-align: left;
+                "
+              >
+                <div style="display: flex; align-items: center; gap: 0.5rem">
+                  <button
+                    pButton
+                    type="button"
+                    icon="pi pi-trash"
+                    class="p-button-danger p-button-sm"
+                    (click)="deleteCTBRow(ctbIdx)"
+                    title="Delete CTB"
+                  ></button>
+                  <button
+                    pButton
+                    type="button"
+                    icon="pi pi-comment"
+                    class="p-button-info p-button-sm"
+                    (click)="addCTBComment(ctbIdx)"
+                    title="Add Comment"
+                  ></button>
+                  <label
+                    style="
+                      display: inline-block;
+                      min-width: 240px;
+                      max-width: 480px;
+                      color: #888;
+                      font-style: italic;
+                    "
+                    >{{ ctb.name || "Placeholder Project" }}</label
+                  >
+                </div>
+              </td>
+              <td
+                style="
+                  width: 260px;
+                  min-width: 160px;
+                  max-width: 160px;
+                  text-align: left;
+                "
+              >
+                <p-dropdown
+                  [options]="ctbStatusOptions"
+                  [(ngModel)]="ctb.status"
+                  optionLabel="label"
+                  placeholder="Status"
+                  [appendTo]="'body'"
+                  [autoZIndex]="true"
+                  [baseZIndex]="10000"
+                  panelStyleClass="ctb-dropdown-panel"
+                ></p-dropdown>
+              </td>
+              <td
+                style="
+                  width: 120px;
+                  min-width: 120px;
+                  max-width: 120px;
+                  text-align: right;
+                "
+              >
+                <span
+                  style="
+                    padding: 2px 8px;
+                    border-radius: 4px;
+                    display: inline-block;
+                    min-width: 60px;
+                    text-align: right;
+                  "
+                >
+                  {{ getCTBTotal(ctb) }}</span
+                >
+              </td>
+              <ng-container *ngFor="let col of ctb.columns; let i = index">
+                <td *ngIf="i > 0" class="month-cell">
+                  <input
+                    type="number"
+                    [ngModel]="ctb.columns[i].amount"
+                    (ngModelChange)="onCTBAmountChange(ctbIdx, i, $event)"
+                    [min]="0"
+                    [disabled]="
+                      !isEditable(
+                        'Capacity Requested by (CTB)',
+                        getMonth(i + 1),
+                        getYear(i + 1)
+                      ) ||
+                      (getMonth(i + 1) === currentMonth &&
+                        getYear(i + 1) === currentYear)
+                    "
+                    style="width: 100%; box-sizing: border-box"
+                  />
+                </td>
+              </ng-container>
+            </tr>
+          </ng-container>
+        </ng-template>
+      </p-table>
+    </div>
   </div>
-  <button
-    pButton
-    type="button"
-    label="Export to Excel"
-    icon="pi pi-file-excel"
-    (click)="exportToExcel()"
-    style="margin-bottom: 1rem"
-  ></button>
-  <p-toast></p-toast>
 </div>
+
+<p-toast></p-toast>

@@ -1,6 +1,17 @@
+// ...existing imports and interfaces...
+
+import {
+  Component,
+  OnInit,
+  ViewChild,
+  AfterViewInit,
+  ElementRef,
+} from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { MessageService } from 'primeng/api';
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-// New interfaces for API response
+
 export interface ForecastColumn {
   id: number;
   month: number | null;
@@ -9,37 +20,188 @@ export interface ForecastColumn {
   columnLabel: string | null;
   rowLabel: string | null;
   cellCss: string;
-  // ...other fields as needed
 }
 
 export interface ForecastRow {
   forecastColumns: ForecastColumn[];
 }
 
-export interface CapacityForecastResponse {
-  result: {
-    transformationUnitId: number;
-    forecastRows: ForecastRow[];
-  };
-}
-
-import { Component, OnInit } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { MessageService } from 'primeng/api';
-
 @Component({
   selector: 'app-capacity-planner',
   templateUrl: './capacity-planner.component.html',
   styleUrls: ['./capacity-planner.component.scss'],
 })
-export class CapacityPlannerComponent implements OnInit {
+export class CapacityPlannerComponent implements OnInit, AfterViewInit {
+  getForecastedCapacityTotal(row: ForecastRow): number {
+    // Slices from index 2 to skip label and total columns
+    return row.forecastColumns
+      .slice(2)
+      .reduce((sum, col) => sum + (col.amount || 0), 0);
+  }
+  ctbSearchText: string = '';
+  // Add ViewChild for both scroll containers
+  @ViewChild('mainTableScroll', { static: false }) mainTableScroll: any;
+  @ViewChild('ctbTableScroll', { static: false }) ctbTableScroll: any;
+
+  // Scroll synchronization for tables
+  ngAfterViewInit() {
+    // Wait for PrimeNG tables to render their scroll containers
+    setTimeout(() => {
+      const scrollBodies = document.querySelectorAll(
+        '.p-table-scrollable-body'
+      );
+      if (scrollBodies.length === 2) {
+        const mainScrollable = scrollBodies[0];
+        const ctbScrollable = scrollBodies[1];
+        let isSyncing = false;
+        mainScrollable.addEventListener('scroll', () => {
+          if (isSyncing) return;
+          isSyncing = true;
+          ctbScrollable.scrollLeft = mainScrollable.scrollLeft;
+          setTimeout(() => {
+            isSyncing = false;
+          }, 0);
+        });
+        ctbScrollable.addEventListener('scroll', () => {
+          if (isSyncing) return;
+          isSyncing = true;
+          mainScrollable.scrollLeft = ctbScrollable.scrollLeft;
+          setTimeout(() => {
+            isSyncing = false;
+          }, 0);
+        });
+      }
+    }, 0);
+  }
+  // ...existing code...
+  getCTBTotal(ctb: { columns: { amount: number | null }[] }): number {
+    return ctb.columns.reduce((sum, col) => sum + (col.amount || 0), 0);
+  }
+  deleteCTBRow(idx: number) {
+    this.ctbRows.splice(idx, 1);
+    this.updateCTBRow();
+  }
+
+  addCTBComment(idx: number) {
+    // Implement comment logic here, e.g., open a dialog or set a comment property
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Comment',
+      detail: `Add comment for CTB row ${idx + 1}`,
+      life: 2000,
+    });
+  }
+  // Helper to get month/year for CTB columns (i matches columns in CTB table)
+  getMonth(i: number): number | null {
+    // columns[0] is Total, columns[1...] are months
+    if (
+      this.forecastRows.length > 0 &&
+      this.forecastRows[0].forecastColumns[i]
+    ) {
+      return this.forecastRows[0].forecastColumns[i].month;
+    }
+    return null;
+  }
+  getYear(i: number): number | null {
+    if (
+      this.forecastRows.length > 0 &&
+      this.forecastRows[0].forecastColumns[i]
+    ) {
+      return this.forecastRows[0].forecastColumns[i].year;
+    }
+    return null;
+  }
+  ctbStatusOptions = [
+    { label: 'Deferred', value: 'Deferred' },
+    { label: 'New', value: 'New' },
+    { label: 'Canceled', value: 'Canceled' },
+    { label: 'Prioritized', value: 'Prioritized' },
+  ];
+  ctbRows: Array<{
+    name: string;
+    columns: { amount: number | null }[];
+    status?: string;
+  }> = [];
+
+  addCTBRow() {
+    // Create columns for each month (skip label and total)
+    const columns = this.columns.slice(1).map(() => ({ amount: 0 }));
+    this.ctbRows.push({ name: '', columns, status: undefined });
+    this.updateCTBRow();
+  }
+
+  // Removed stray code from previous patch attempts
+
+  onCTBAmountChange(ctbIdx: number, colIdx: number, value: number) {
+    // Restrict negative values
+    let newValue = value < 0 ? 0 : value;
+    // Get Forecasted Capacity and RTB for this month
+    const forecastedRow = this.forecastRows.find(
+      (r) => r.forecastColumns[0].rowLabel?.includes('Forecasted')
+    );
+    const rtbRow = this.forecastRows.find(
+      (r) => r.forecastColumns[0].rowLabel === 'RTB'
+    );
+    if (forecastedRow && rtbRow && forecastedRow.forecastColumns[colIdx + 1] && rtbRow.forecastColumns[colIdx + 1]) {
+      const maxValue = (forecastedRow.forecastColumns[colIdx + 1].amount || 0) - (rtbRow.forecastColumns[colIdx + 1].amount || 0);
+      // Calculate sum of all CTB rows for this month, including the new value
+      let sum = 0;
+      for (let i = 0; i < this.ctbRows.length; i++) {
+        if (i === ctbIdx) {
+          sum += newValue;
+        } else {
+          sum += this.ctbRows[i].columns[colIdx].amount || 0;
+        }
+      }
+      // Only show warning if sum exceeds allowed value
+      if (sum > maxValue) {
+        newValue = Math.max(0, maxValue - (sum - newValue));
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Max Capacity',
+          detail: 'Cannot exceed Remaining Capacity!',
+          life: 2000,
+        });
+      }
+    }
+    this.ctbRows[ctbIdx].columns[colIdx].amount = newValue;
+    this.updateCTBRow();
+  }
+  updateCTBRow() {
+    // Find the CTB row in forecastRows
+    const ctbRow = this.forecastRows.find(
+      (r) => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)'
+    );
+    if (!ctbRow) return;
+    // For each month column, sum all CTB rows and update the top table
+    for (let i = 1; i < ctbRow.forecastColumns.length; i++) {
+      let sum = 0;
+      for (const ctb of this.ctbRows) {
+        sum +=
+          typeof ctb.columns[i - 1].amount === 'number'
+            ? ctb.columns[i - 1].amount || 0
+            : 0;
+      }
+      ctbRow.forecastColumns[i].amount = sum;
+    }
+  }
   exportToExcel() {
     // Prepare header
     const header = ['Row Label', 'Total'];
     // Helper to format month-year as 'Feb-2025'
     const monthNames = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     if (this.forecastRows.length > 0) {
       this.forecastRows[0].forecastColumns.slice(1).forEach((col) => {
@@ -60,7 +222,11 @@ export class CapacityPlannerComponent implements OnInit {
       } else if (this.isTotalDynamic(row.forecastColumns[0].rowLabel)) {
         rowArr.push(this.getRowTotal(row));
       } else {
-        rowArr.push(row.forecastColumns[1]?.amount != null ? row.forecastColumns[1].amount : 0);
+        rowArr.push(
+          row.forecastColumns[1]?.amount != null
+            ? row.forecastColumns[1].amount
+            : 0
+        );
       }
       // Month columns
       row.forecastColumns.slice(1).forEach((col, idx) => {
@@ -127,6 +293,21 @@ export class CapacityPlannerComponent implements OnInit {
       });
       col.amount = null;
       return;
+    }
+    // Prevent Capacity Requested by (CTB) from exceeding Remaining Capacity
+    if (row.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)') {
+      // Find Remaining Capacity row for the same column
+      const remainingRow = this.forecastRows.find(
+        (r) => r.forecastColumns[0].rowLabel === 'Remaining Capacity'
+      );
+      if (remainingRow && remainingRow.forecastColumns[monthIdx]) {
+        const maxValue = remainingRow.forecastColumns[monthIdx].amount ?? 0;
+        if (newValue > maxValue) {
+          col.amount = maxValue;
+          // Optionally show a message/toast here
+          return;
+        }
+      }
     }
     col.amount = newValue;
   }
@@ -223,26 +404,23 @@ export class CapacityPlannerComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.http
-      .get<any>('assets/capacity_forecast_24_months.json')
-      .subscribe((data) => {
-        // If your API returns an array, adjust accordingly
-        // If it returns an object with result.forecastRows, adjust as below
-        const forecastRows =
-          data.result?.forecastRows || data.forecastRows || data;
-        this.forecastRows = forecastRows;
-        if (
-          this.forecastRows.length > 0 &&
-          this.forecastRows[0] &&
-          Array.isArray(this.forecastRows[0].forecastColumns)
-        ) {
-          this.columns = this.forecastRows[0].forecastColumns.map(
-            (col: any) => col.columnLabel || col.rowLabel || ''
-          );
-        } else {
-          this.columns = [];
-        }
-      });
+    this.http.get<any>('http://localhost:3001/result').subscribe((data) => {
+      // JSON Server returns { result: { forecastRows: [...] } }
+      const forecastRows =
+        data.result?.forecastRows || data.forecastRows || data;
+      this.forecastRows = forecastRows;
+      if (
+        this.forecastRows.length > 0 &&
+        this.forecastRows[0] &&
+        Array.isArray(this.forecastRows[0].forecastColumns)
+      ) {
+        this.columns = this.forecastRows[0].forecastColumns.map(
+          (col: any) => col.columnLabel || col.rowLabel || ''
+        );
+      } else {
+        this.columns = [];
+      }
+    });
   }
 
   // Example: Calculate total for a column index
