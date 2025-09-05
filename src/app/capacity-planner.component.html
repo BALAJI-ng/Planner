@@ -55,10 +55,7 @@
             >
               {{ column }}
             </th>
-            <th 
-              *ngIf="i > 1" 
-              style="padding-left: 8px;"
-            >
+            <th *ngIf="i > 1" style="padding-left: 8px">
               {{ column }}
             </th>
           </ng-container>
@@ -124,7 +121,7 @@
                 </ng-container>
               </ng-template>
             </td>
-            <td *ngIf="i > 1" style="padding-left: 8px;">
+            <td *ngIf="i > 1" style="padding-left: 8px">
               <ng-container
                 *ngIf="
                   row.forecastColumns[0].rowLabel === 'Remaining Capacity';
@@ -204,6 +201,8 @@
           icon="pi pi-plus"
           (click)="addCTBRow()"
         ></button>
+
+        {{ ctbRows | json }}
       </div>
       <p-table
         id="ctb-table"
@@ -258,7 +257,7 @@
               Total
             </th>
             <ng-container *ngFor="let column of columns; let i = index">
-              <th *ngIf="i > 1" style="padding-left: 8px;">{{ column }}</th>
+              <th *ngIf="i > 1" style="padding-left: 8px">{{ column }}</th>
             </ng-container>
           </tr>
         </ng-template>
@@ -319,7 +318,7 @@
                       color: #888;
                       font-style: italic;
                     "
-                    >{{ ctb.name || "Placeholder Project" }}</label
+                    >{{ ctb.name }}</label
                   >
                 </div>
               </td>
@@ -376,7 +375,7 @@
                 >
               </td>
               <ng-container *ngFor="let col of ctb.columns; let i = index">
-                <td *ngIf="i > 0" class="month-cell" style="padding-left: 8px;">
+                <td *ngIf="i > 0" class="month-cell" style="padding-left: 8px">
                   <input
                     type="number"
                     [ngModel]="ctb.columns[i].amount"
@@ -401,4 +400,4 @@
   </div>
 </div>
 
-<p-toast></p-toast>
+<p-toast position="bottom-right" [life]="10000"></p-toast>

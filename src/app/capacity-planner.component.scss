@@ -81,7 +81,7 @@
   overflow-y: auto !important;
   position: relative !important;
 }
-// Fix dropdown clipping by overriding PrimeNG table wrapper overflow
+// Fix dropdown clipping by overriding PrimeNG table wrapper
 :host{
   ::ng-deep .ctb-table .p-datatable-wrapper {
     overflow: visible !important;
@@ -667,4 +667,25 @@ td.sticky-col, td.sticky-status, td.sticky-total {
     background-color: #fff;
     z-index: -1;
   }
+}
+
+.capacity-planner {
+  overflow-x: unset;
+}
+
+.plan-table.ctb-table {
+  width: 100%;
+  display: block;
+}
+
+:host ::ng-deep .p-datatable-scrollable-wrapper {
+  overflow-x: auto !important;
+  width: 100vw !important;
+  min-width: 900px;
+}
+
+:host ::ng-deep .p-datatable-scrollable-body {
+  overflow-x: auto !important;
+  width: 100vw !important;
+  min-width: 900px;
 }

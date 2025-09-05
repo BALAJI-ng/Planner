@@ -100,8 +100,9 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     }, 0);
   }
   // ...existing code...
-  getCTBTotal(ctb: { columns: { amount: number | null }[] }): number {
-    return ctb.columns.reduce((sum, col) => sum + (col.amount || 0), 0);
+  getCTBTotal(ctb: any): number {
+    // Only return the value from the mapped Total column
+    return ctb.columns && ctb.columns.length > 0 ? ctb.columns[0].amount || 0 : 0;
   }
   deleteCTBRow(idx: number) {
     this.ctbRows.splice(idx, 1);
@@ -492,6 +493,40 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
           this.columns = [];
         }
       });
+
+      this.callBottomTable()
+  }
+
+  callBottomTable() {
+    this.http.get<any>('http://localhost:3001/capacityBottom').subscribe(
+      (data) => {
+        let rows = Array.isArray(data) ? data : (data.result || data.rows || []);
+        this.ctbRows = rows.map((row: any) => {
+          const forecastColumns = row.forecastColumns || [];
+          const name = forecastColumns.length > 0 ? forecastColumns[0].rowLabel || '' : '';
+          const statusCol = forecastColumns.find((col: any) => col.columnLabel === 'Status');
+          // Find matching status option object
+          const statusValue = statusCol?.status || '';
+          const statusOption = this.ctbStatusOptions?.find((opt: any) => opt.value === statusValue || opt.label === statusValue) || null;
+          const totalCol = forecastColumns.find((col: any) => col.columnLabel === 'Total');
+          const monthAmounts = (this.columns || []).slice(3).map((colLabel: string) => {
+            const col = forecastColumns.find((c: any) => c.columnLabel === colLabel);
+            return { amount: col?.amount || 0 };
+          });
+          return {
+            name,
+            status: statusOption,
+            columns: [
+              { amount: totalCol?.amount || 0 },
+              ...monthAmounts
+            ]
+          };
+        });
+      },
+      (error) => {
+        console.error('Failed to fetch CTB table data:', error);
+      }
+    );
   }
 
   // Example: Calculate total for a column index
