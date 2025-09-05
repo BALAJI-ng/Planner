@@ -14,6 +14,53 @@
   font-size: 1.4rem;
   pointer-events: none;
 }
+
+/* Fix for overlapping cells */
+::ng-deep .p-datatable .p-datatable-tbody > tr > td,
+::ng-deep .p-datatable .p-datatable-thead > tr > th {
+  &.sticky-col, &.sticky-label, &.sticky-status, &.sticky-total, &.ctb-sticky {
+    background-color: #fff !important;
+    position: sticky !important;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #fff;
+      z-index: -1;
+    }
+  }
+}
+
+/* Special rules for CTB table sticky columns */
+::ng-deep #ctb-table {
+  .p-datatable-thead > tr > th.sticky-total,
+  .p-datatable-tbody > tr > td.sticky-total {
+    position: sticky !important;
+    left: 410px !important;
+    z-index: 5 !important;
+    background-color: #fff !important;
+  }
+  
+  .p-datatable-thead > tr > th.sticky-status,
+  .p-datatable-tbody > tr > td.sticky-status {
+    position: sticky !important;
+    left: 260px !important;
+    z-index: 4 !important;
+    background-color: #fff !important;
+  }
+  
+  .p-datatable-thead > tr > th.sticky-col,
+  .p-datatable-tbody > tr > td.sticky-col {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 3 !important;
+    background-color: #fff !important;
+  }
+}
 .excel-btn.p-button,
 .excel-btn.p-button:enabled,
 .excel-btn.p-button:active,
@@ -30,14 +77,58 @@
 // Ensure CTB table has a minimum height for better dropdown usability
 #ctb-table .p-datatable-scrollable-body {
   min-height: 400px;
-    overflow: visible !important;
-    position: relative !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  position: relative !important;
 }
 // Fix dropdown clipping by overriding PrimeNG table wrapper overflow
 :host{
-  ::ng-deep .ctb-table .p-datatable-wrapper, ::ng-deep .ctb-table .p-datatable-scrollable-body {
+  ::ng-deep .ctb-table .p-datatable-wrapper {
     overflow: visible !important;
     position: relative !important;
+  }
+  
+  ::ng-deep .ctb-table .p-datatable-scrollable-body {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    position: relative !important;
+  }
+  
+  ::ng-deep #ctb-table .p-datatable-scrollable-header {
+    overflow: visible !important;
+  }
+  
+  /* Fix spacing between columns */
+  ::ng-deep .plan-table .p-datatable-thead > tr > th,
+  ::ng-deep .plan-table .p-datatable-tbody > tr > td {
+    padding: 8px;
+  }
+  
+  /* Ensure no gap between Total and next month */
+  ::ng-deep .plan-table .sticky-total {
+    padding-right: 0 !important;
+  }
+  
+  /* Fix for Status dropdown width */
+  ::ng-deep .ctb-dropdown-panel {
+    width: 140px !important; /* Constrain dropdown panel width */
+    max-width: 140px !important;
+    transform: translateX(-10px) !important; /* Shift panel slightly to the left */
+    left: auto !important; /* Override any position left that may be causing overlap */
+    right: auto !important;
+  }
+  
+  /* Ensure the dropdown button itself is constrained */
+  ::ng-deep .sticky-status .p-dropdown {
+    width: 130px !important;
+    max-width: 130px !important;
+    overflow: hidden;
+  }
+  
+  /* Add a global style for PrimeNG dropdown panels */
+  ::ng-deep body .p-dropdown-panel {
+    position: absolute !important;
+    z-index: 12000 !important; /* Higher z-index than table cells */
   }
 }
 // .p-datatable > .p-datatable-wrapper {
@@ -46,11 +137,11 @@
 // }
 /* Sticky column styles for table */
 .sticky-col {
-  position: sticky;
+  position: sticky !important;
   left: 0;
-  background: #fff;
+  background-color: #fff !important;
   z-index: 10;
-  box-shadow: none;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.05);
   border-radius: 0;
   margin: 0;
   padding: 0;
@@ -59,18 +150,165 @@
 .sticky-label {
   left: 0;
   z-index: 11;
-  box-shadow: none;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.05);
   border-radius: 0;
   margin: 0;
   padding: 0;
+  background-color: #fff !important;
 }
-.sticky-total {
-  left: 200px; /* Match row label width */
-  z-index: 12;
-  box-shadow: none;
+
+.sticky-status {
+  position: sticky !important;
+  left: 260px; /* Width of CTB Name column */
+  z-index: 11;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.05);
   border-radius: 0;
   margin: 0;
   padding: 0;
+  background-color: #fff !important;
+}
+
+/* Second column in forecast table */
+.sticky-second-col {
+  position: sticky !important;
+  left: 260px; /* Width of first column */
+  z-index: 9;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
+  background-color: #fff !important;
+}
+
+.sticky-total {
+  position: sticky !important;
+  z-index: 12;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
+  background-color: #fff !important;
+}
+
+/* Different left positioning for different tables */
+.ctb-table .sticky-total {
+  left: 410px !important; /* CTB Name (260px) + Status (150px) */
+}
+
+/* For the main forecast table */
+.plan-table:not(#ctb-table) .sticky-total {
+  left: 440px !important; /* Width based on first two columns (260px + 180px) */
+}
+
+/* Ensure CTB table sticky columns */
+#ctb-table .sticky-total {
+  position: sticky !important;
+  left: 410px !important;
+  background-color: #fff !important;
+  z-index: 5 !important;
+}
+
+#ctb-table .sticky-status {
+  position: sticky !important;
+  left: 260px !important;
+  background-color: #fff !important;
+  z-index: 4 !important;
+}
+
+/* Ensure top table sticky behavior */
+::ng-deep .plan-table:not(#ctb-table) .p-datatable-scrollable-body-table .sticky-total {
+  position: sticky !important;
+  background-color: #fff !important;
+  z-index: 5 !important;
+}
+
+/* Style for the second column in the top table */
+::ng-deep .plan-table:not(#ctb-table) .p-datatable-thead > tr > th:nth-child(2) {
+  background-color: #fff !important;
+  z-index: 4 !important;
+  position: sticky !important;
+  left: 260px; /* Width of the first column */
+}
+
+/* Make input values cell in the second column have white background */
+::ng-deep .plan-table .p-datatable-tbody > tr > td:nth-child(2) {
+  background-color: #fff !important;
+  position: sticky !important;
+  left: 260px;
+  z-index: 2 !important;
+}
+
+/* Fix for input columns when scrolling horizontally */
+::ng-deep .plan-table .p-datatable-tbody > tr > td:nth-child(2) input[type="number"] {
+  background-color: #fff !important;
+  position: relative;
+  z-index: 2;
+}
+
+/* Additional styles for both tables to prevent content showing through */
+::ng-deep .plan-table .sticky-col,
+::ng-deep .plan-table .sticky-label,
+::ng-deep .plan-table .sticky-total,
+::ng-deep .ctb-table .sticky-col,
+::ng-deep .ctb-table .sticky-status,
+::ng-deep .ctb-table .sticky-total {
+  opacity: 1 !important;
+  background-color: #fff !important;
+}
+
+/* Fix for overlapping cells */
+::ng-deep .p-datatable .p-datatable-tbody > tr > td,
+::ng-deep .p-datatable .p-datatable-thead > tr > th {
+  &.sticky-col, &.sticky-label, &.sticky-status, &.sticky-total, &.ctb-sticky, &.sticky-second-col {
+    background-color: #fff !important;
+    position: relative;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #fff;
+      z-index: -1;
+    }
+  }
+}
+
+/* Additional fix for cells with colspans that need to cover more width */
+::ng-deep .p-datatable .p-datatable-tbody > tr > td[colspan="2"] {
+  background-color: #fff !important;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 440px; /* Combined width of first two columns */
+    bottom: 0;
+    background-color: #fff;
+    z-index: -1;
+  }
+}
+
+/* CTB table sticky columns */
+.ctb-sticky {
+  position: sticky !important;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+}
+
+/* Make sure TD cells also respect sticky positioning */
+td.sticky-col, td.sticky-status, td.sticky-total {
+  position: sticky !important;
+  background-color: #fff !important;
+}
+
+/* Style for sticky header */
+.ctb-table .p-datatable-thead th.ctb-sticky {
+  position: sticky;
+  background-color: #fff;
+  z-index: 20;
 }
 .ctb-summary-cell {
   background: #e0e0e0;
@@ -138,12 +376,16 @@
   .plan-table {
     width: max-content;
     min-width: 100%;
-  border-collapse: collapse;
+    border-collapse: collapse;
     border-spacing: 0;
-  background: #f7f8fa;
+    background: #f7f8fa;
     border-radius: 8px;
-    overflow: hidden;
     overflow: visible !important;
+    
+    /* Ensure cells don't show through */
+    th, td {
+      background-color: inherit;
+    }
     th, td {
       text-align: center;
       padding: 0.4rem 0.7rem;
@@ -371,4 +613,58 @@
 ::ng-deep .p-dropdown-panel {
   z-index: 9999 !important;
   position: absolute !important;
+}
+
+// Make sure scrollable container doesn't hide sticky columns
+::ng-deep .ctb-table, ::ng-deep .plan-table {
+  .p-datatable-scrollable-body {
+    overflow-x: auto !important;
+  }
+  
+  .p-datatable-wrapper {
+    overflow: visible !important;
+    position: relative !important;
+  }
+
+  .p-datatable-scrollable-header {
+    overflow: visible !important;
+  }
+
+  /* Style for sticky header cells */
+  .p-datatable-thead > tr > th.ctb-sticky,
+  .p-datatable-thead > tr > th.sticky-total,
+  .p-datatable-thead > tr > th.sticky-col,
+  .p-datatable-thead > tr > th.sticky-label,
+  .p-datatable-thead > tr > th.sticky-status {
+    position: sticky !important;
+    z-index: 5 !important;
+    background-color: #fff !important;
+  }
+
+  /* Style for sticky body cells */
+  .p-datatable-tbody > tr > td.ctb-sticky,
+  .p-datatable-tbody > tr > td.sticky-total,
+  .p-datatable-tbody > tr > td.sticky-col,
+  .p-datatable-tbody > tr > td.sticky-label,
+  .p-datatable-tbody > tr > td.sticky-status {
+    position: sticky !important;
+    z-index: 4 !important;
+    background-color: #fff !important;
+  }
+  
+  /* Add extra background overlay to ensure month columns don't show through */
+  .sticky-col::after,
+  .sticky-label::after,
+  .sticky-status::after,
+  .sticky-total::after,
+  .ctb-sticky::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #fff;
+    z-index: -1;
+  }
 }

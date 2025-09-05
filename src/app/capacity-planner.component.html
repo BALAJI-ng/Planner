@@ -14,7 +14,7 @@
   <div *ngIf="forecastRows.length > 0">
     <p-table
       [value]="forecastRows"
-      class="plan-table"
+      class="plan-table ctb-table"
       [scrollable]="true"
       [scrollHeight]="'auto'"
     >
@@ -22,23 +22,73 @@
         <tr>
           <th
             class="sticky-col sticky-label"
-            style="width: 260px; min-width: 260px; max-width: 260px"
+            style="
+              width: 260px;
+              min-width: 260px;
+              max-width: 260px;
+              background-color: #fff !important;
+              z-index: 3;
+              position: relative;
+            "
           ></th>
-          <th style="width: 180px; min-width: 180px; max-width: 180px"></th>
+          <th
+            class="sticky-second-col"
+            style="
+              width: 180px;
+              min-width: 180px;
+              max-width: 180px;
+              background-color: #fff !important;
+              z-index: 2;
+              position: relative;
+            "
+          ></th>
           <ng-container *ngFor="let column of columns; let i = index">
-            <th *ngIf="i === 1" class="sticky-total">{{ column }}</th>
-            <th *ngIf="i > 1">{{ column }}</th>
+            <th
+              *ngIf="i === 1"
+              class="sticky-total ctb-sticky"
+              style="
+                background-color: #fff !important;
+                z-index: 5;
+                position: relative;
+                padding-right: 0;
+              "
+            >
+              {{ column }}
+            </th>
+            <th 
+              *ngIf="i > 1" 
+              style="padding-left: 8px;"
+            >
+              {{ column }}
+            </th>
           </ng-container>
         </tr>
       </ng-template>
       <ng-template pTemplate="body" let-row>
         <tr>
-          <td colspan="2" class="sticky-col sticky-label">
+          <td
+            colspan="2"
+            class="sticky-col sticky-label"
+            style="
+              background-color: #fff !important;
+              z-index: 3;
+              position: relative;
+              box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+            "
+          >
             {{ row.forecastColumns[0].rowLabel }}
           </td>
 
           <ng-container *ngFor="let col of row.forecastColumns; let i = index">
-            <td *ngIf="i === 1" class="sticky-total">
+            <td
+              *ngIf="i === 1"
+              class="sticky-total ctb-sticky"
+              style="
+                background-color: #fff !important;
+                z-index: 5;
+                position: relative;
+              "
+            >
               <ng-container
                 *ngIf="
                   row.forecastColumns[0].rowLabel === 'Forecasted Capacity';
@@ -74,7 +124,7 @@
                 </ng-container>
               </ng-template>
             </td>
-            <td *ngIf="i > 1">
+            <td *ngIf="i > 1" style="padding-left: 8px;">
               <ng-container
                 *ngIf="
                   row.forecastColumns[0].rowLabel === 'Remaining Capacity';
@@ -158,37 +208,57 @@
       <p-table
         id="ctb-table"
         [value]="ctbRows"
-        class="plan-table"
+        class="plan-table ctb-table"
         [scrollable]="true"
         [scrollHeight]="'400px'"
       >
         <ng-template pTemplate="header">
           <tr>
             <th
-              class="sticky-col sticky-label"
-              style="width: 260px; min-width: 260px; max-width: 260px"
+              class="sticky-col sticky-label ctb-sticky"
+              style="
+                width: 260px;
+                min-width: 260px;
+                max-width: 260px;
+                background-color: #fff !important;
+                z-index: 3;
+                position: sticky !important;
+                left: 0;
+              "
             >
               CTB Name
             </th>
             <th
-              class="sticky-status"
-              style="width: 150px; min-width: 150px; max-width: 150px"
+              class="sticky-status ctb-sticky"
+              style="
+                width: 150px;
+                min-width: 150px;
+
+                background-color: #fff !important;
+                z-index: 2;
+                position: sticky !important;
+                left: 260px;
+              "
             >
               Status
             </th>
             <th
-              class="sticky-total"
+              class="sticky-total ctb-sticky"
               style="
                 width: 100px;
                 min-width: 100px;
                 max-width: 100px;
                 text-align: center;
+                background-color: #fff !important;
+                z-index: 5;
+                position: sticky !important;
+                left: 410px; /* CTB Name (260px) + Status (150px) */
               "
             >
               Total
             </th>
             <ng-container *ngFor="let column of columns; let i = index">
-              <th *ngIf="i > 1">{{ column }}</th>
+              <th *ngIf="i > 1" style="padding-left: 8px;">{{ column }}</th>
             </ng-container>
           </tr>
         </ng-template>
@@ -212,11 +282,16 @@
           >
             <tr>
               <td
+                class="sticky-col sticky-label ctb-sticky"
                 style="
-                  width: 160px;
-                  min-width: 160px;
-                  max-width: 160px;
+                  width: 260px;
+                  min-width: 260px;
+                  max-width: 260px;
                   text-align: left;
+                  background-color: #fff !important;
+                  z-index: 3;
+                  position: sticky !important;
+                  left: 0;
                 "
               >
                 <div style="display: flex; align-items: center; gap: 0.5rem">
@@ -249,11 +324,16 @@
                 </div>
               </td>
               <td
+                class="sticky-status ctb-sticky"
                 style="
                   width: 150px;
                   min-width: 150px;
-                  max-width: 150px;
+
                   text-align: left;
+                  background-color: #fff !important;
+                  z-index: 2;
+                  position: sticky !important;
+                  left: 260px;
                 "
               >
                 <p-dropdown
@@ -265,14 +345,22 @@
                   [autoZIndex]="true"
                   [baseZIndex]="10000"
                   panelStyleClass="ctb-dropdown-panel"
+                  [style]="{ width: '130px', 'max-width': '130px' }"
+                  styleClass="status-dropdown"
+                  scrollHeight="200px"
                 ></p-dropdown>
               </td>
               <td
+                class="sticky-total ctb-sticky"
                 style="
                   width: 100px;
                   min-width: 100px;
                   max-width: 100px;
                   text-align: center;
+                  background-color: #fff !important;
+                  z-index: 5;
+                  position: sticky !important;
+                  left: 410px; /* CTB Name (260px) + Status (150px) */
                 "
               >
                 <span
@@ -288,7 +376,7 @@
                 >
               </td>
               <ng-container *ngFor="let col of ctb.columns; let i = index">
-                <td *ngIf="i > 0" class="month-cell">
+                <td *ngIf="i > 0" class="month-cell" style="padding-left: 8px;">
                   <input
                     type="number"
                     [ngModel]="ctb.columns[i].amount"
