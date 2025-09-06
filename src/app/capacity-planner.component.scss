@@ -678,6 +678,48 @@ td.sticky-col, td.sticky-status, td.sticky-total {
   display: block;
 }
 
+/* Table scroll wrapper styles */
+.table-scroll-wrapper {
+  overflow-x: auto;
+  overflow-y: visible;
+  width: 100%;
+  min-width: 100%;
+  
+  /* Custom scrollbar styling */
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+}
+
+/* Ensure tables don't have their own scroll */
+.table-scroll-wrapper ::ng-deep .p-datatable {
+  .p-datatable-wrapper {
+    overflow: visible !important;
+  }
+  
+  .p-datatable-scrollable-wrapper {
+    overflow: visible !important;
+  }
+  
+  .p-datatable-scrollable-body {
+    overflow: visible !important;
+  }
+}
+
 :host ::ng-deep .p-datatable-scrollable-wrapper {
   overflow-x: auto !important;
   width: 100vw !important;

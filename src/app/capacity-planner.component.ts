@@ -66,38 +66,42 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
   }
   ctbSearchText: string = '';
   // Add ViewChild for both scroll containers
-  @ViewChild('mainTableScroll', { static: false }) mainTableScroll: any;
-  @ViewChild('ctbTableScroll', { static: false }) ctbTableScroll: any;
+  @ViewChild('topTableScroll', { static: false }) topTableScroll?: ElementRef;
+  @ViewChild('bottomTableScroll', { static: false })
+  bottomTableScroll?: ElementRef;
+
+  private isScrollSyncing = false;
+
+  // Scroll synchronization methods
+  onTopTableScroll(event: Event) {
+    if (this.isScrollSyncing) return;
+
+    this.isScrollSyncing = true;
+    const target = event.target as HTMLElement;
+    if (this.bottomTableScroll) {
+      this.bottomTableScroll.nativeElement.scrollLeft = target.scrollLeft;
+    }
+    setTimeout(() => {
+      this.isScrollSyncing = false;
+    }, 0);
+  }
+
+  onBottomTableScroll(event: Event) {
+    if (this.isScrollSyncing) return;
+
+    this.isScrollSyncing = true;
+    const target = event.target as HTMLElement;
+    if (this.topTableScroll) {
+      this.topTableScroll.nativeElement.scrollLeft = target.scrollLeft;
+    }
+    setTimeout(() => {
+      this.isScrollSyncing = false;
+    }, 0);
+  }
 
   // Scroll synchronization for tables
   ngAfterViewInit() {
-    // Wait for PrimeNG tables to render their scroll containers
-    setTimeout(() => {
-      const scrollBodies = document.querySelectorAll(
-        '.p-table-scrollable-body'
-      );
-      if (scrollBodies.length === 2) {
-        const mainScrollable = scrollBodies[0];
-        const ctbScrollable = scrollBodies[1];
-        let isSyncing = false;
-        mainScrollable.addEventListener('scroll', () => {
-          if (isSyncing) return;
-          isSyncing = true;
-          ctbScrollable.scrollLeft = mainScrollable.scrollLeft;
-          setTimeout(() => {
-            isSyncing = false;
-          }, 0);
-        });
-        ctbScrollable.addEventListener('scroll', () => {
-          if (isSyncing) return;
-          isSyncing = true;
-          mainScrollable.scrollLeft = ctbScrollable.scrollLeft;
-          setTimeout(() => {
-            isSyncing = false;
-          }, 0);
-        });
-      }
-    }, 0);
+    // ViewChild elements will be available here if needed for any initialization
   }
   // ...existing code...
   getCTBTotal(ctb: any): number {
@@ -200,8 +204,12 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
         });
         // Force input to display corrected value
         setTimeout(() => {
-          const inputs = document.querySelectorAll('#ctb-table input[type="number"]');
-          const targetInput = inputs[ctbIdx * (this.ctbRows[0]?.columns?.length - 1 || 0) + colIdx - 1] as HTMLInputElement;
+          const inputs = document.querySelectorAll(
+            '#ctb-table input[type="number"]'
+          );
+          const targetInput = inputs[
+            ctbIdx * (this.ctbRows[0]?.columns?.length - 1 || 0) + colIdx - 1
+          ] as HTMLInputElement;
           if (targetInput) {
             targetInput.value = newValue.toString();
           }
@@ -609,19 +617,26 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
         (r: any) => r.forecastColumns[0].rowLabel === 'RTB'
       );
       const ctbRow = this.forecastRows.find(
-        (r: any) => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)'
+        (r: any) =>
+          r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)'
       );
 
-      if (forecastedRow && rtbRow && ctbRow && forecastedRow.forecastColumns[i]) {
+      if (
+        forecastedRow &&
+        rtbRow &&
+        ctbRow &&
+        forecastedRow.forecastColumns[i]
+      ) {
         const forecasted = forecastedRow.forecastColumns[i].amount || 0;
         const currentRtb = rtbRow.forecastColumns[i].amount || 0;
         const currentCtb = ctbRow.forecastColumns[i].amount || 0;
-        
+
         // Calculate max allowed based on which row is being edited
         let maxAllowed = 0;
         if (rowLabel === 'RTB') {
           maxAllowed = forecasted - currentCtb;
-        } else { // CTB
+        } else {
+          // CTB
           maxAllowed = forecasted - currentRtb;
         }
 
