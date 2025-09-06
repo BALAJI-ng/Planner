@@ -142,10 +142,12 @@
               </ng-container>
               <ng-template #normalInput>
                 <input
+                  #amountInput
                   type="number"
                   [ngModel]="col.amount != null ? col.amount : 0"
-                  (ngModelChange)="onAmountChange(row, col, i, $event)"
+                  (input)="onAmountChange(row, col, i, amountInput.valueAsNumber)"
                   [min]="0"
+                  [max]="100"
                   [disabled]="
                     row.forecastColumns[0].rowLabel === 'Forecasted Capacity' ||
                     row.forecastColumns[0].rowLabel ===
@@ -375,9 +377,10 @@
               <ng-container *ngFor="let col of ctb.columns; let i = index">
                 <td *ngIf="i > 0" class="month-cell" style="padding-left: 8px">
                   <input
+                    #ctbAmountInput
                     type="number"
                     [ngModel]="ctb.columns[i].amount"
-                    (ngModelChange)="onCTBAmountChange(ctbIdx, i, $event)"
+                    (input)="onCTBAmountChange(ctbIdx, i, ctbAmountInput.valueAsNumber)"
                     [min]="0"
                     [disabled]="
                       !isEditable(

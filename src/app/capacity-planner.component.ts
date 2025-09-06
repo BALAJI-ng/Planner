@@ -102,7 +102,9 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
   // ...existing code...
   getCTBTotal(ctb: any): number {
     // Only return the value from the mapped Total column
-    return ctb.columns && ctb.columns.length > 0 ? ctb.columns[0].amount || 0 : 0;
+    return ctb.columns && ctb.columns.length > 0
+      ? ctb.columns[0].amount || 0
+      : 0;
   }
   deleteCTBRow(idx: number) {
     this.ctbRows.splice(idx, 1);
@@ -189,13 +191,21 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
       // Calculate the max allowed for this input
       const maxAllowedForInput = Math.max(0, maxValue - sumOtherRows);
       if (inputValue > maxAllowedForInput) {
-        newValue = 0;
+        newValue = maxAllowedForInput;
         this.messageService.add({
           severity: 'warn',
           summary: 'Max Capacity',
           detail: 'Cannot exceed Remaining Capacity!',
-          life: 2000,
+          life: 10000,
         });
+        // Force input to display corrected value
+        setTimeout(() => {
+          const inputs = document.querySelectorAll('#ctb-table input[type="number"]');
+          const targetInput = inputs[ctbIdx * (this.ctbRows[0]?.columns?.length - 1 || 0) + colIdx - 1] as HTMLInputElement;
+          if (targetInput) {
+            targetInput.value = newValue.toString();
+          }
+        }, 0);
       }
     }
     this.ctbRows[ctbIdx].columns[colIdx].amount = newValue;
@@ -339,44 +349,44 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     return false;
   }
 
-  onAmountChange(
-    row: ForecastRow,
-    col: ForecastColumn,
-    monthIdx: number,
-    newValue: number
-  ) {
-    const max = this.getMaxAllowed(row, monthIdx);
-    if (newValue < 0) {
-      col.amount = null;
-      return;
-    }
-    if (newValue > max) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Max Capacity',
-        detail: 'Maximum capacity reached!',
-        life: 2000,
-      });
-      col.amount = null;
-      return;
-    }
-    // Prevent Capacity Requested by (CTB) from exceeding Remaining Capacity
-    if (row.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)') {
-      // Find Remaining Capacity row for the same column
-      const remainingRow = this.forecastRows.find(
-        (r) => r.forecastColumns[0].rowLabel === 'Remaining Capacity'
-      );
-      if (remainingRow && remainingRow.forecastColumns[monthIdx]) {
-        const maxValue = remainingRow.forecastColumns[monthIdx].amount ?? 0;
-        if (newValue > maxValue) {
-          col.amount = maxValue;
-          // Optionally show a message/toast here
-          return;
-        }
-      }
-    }
-    col.amount = newValue;
-  }
+  // onAmountChange(
+  //   row: ForecastRow,
+  //   col: ForecastColumn,
+  //   monthIdx: number,
+  //   newValue: number
+  // ) {
+  //   const max = this.getMaxAllowed(row, monthIdx);
+  //   if (newValue < 0) {
+  //     col.amount = null;
+  //     return;
+  //   }
+  //   if (newValue > max) {
+  //     this.messageService.add({
+  //       severity: 'warn',
+  //       summary: 'Max Capacity',
+  //       detail: 'Maximum capacity reached!',
+  //       life: 2000,
+  //     });
+  //     col.amount = max; // Set to max instead of resetting to zero
+  //     return;
+  //   }
+  //   // Prevent Capacity Requested by (CTB) from exceeding Remaining Capacity
+  //   if (row.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)') {
+  //     // Find Remaining Capacity row for the same column
+  //     const remainingRow = this.forecastRows.find(
+  //       (r) => r.forecastColumns[0].rowLabel === 'Remaining Capacity'
+  //     );
+  //     if (remainingRow && remainingRow.forecastColumns[monthIdx]) {
+  //       const maxValue = remainingRow.forecastColumns[monthIdx].amount ?? 0;
+  //       if (newValue > maxValue) {
+  //         col.amount = maxValue;
+  //         // Optionally show a message/toast here
+  //         return;
+  //       }
+  //     }
+  //   }
+  //   col.amount = newValue;
+  // }
 
   isTotalDynamic(rowLabel: string | null): boolean {
     return (
@@ -494,32 +504,42 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
         }
       });
 
-      this.callBottomTable()
+    this.callBottomTable();
   }
 
   callBottomTable() {
     this.http.get<any>('http://localhost:3001/capacityBottom').subscribe(
       (data) => {
-        let rows = Array.isArray(data) ? data : (data.result || data.rows || []);
+        let rows = Array.isArray(data) ? data : data.result || data.rows || [];
         this.ctbRows = rows.map((row: any) => {
           const forecastColumns = row.forecastColumns || [];
-          const name = forecastColumns.length > 0 ? forecastColumns[0].rowLabel || '' : '';
-          const statusCol = forecastColumns.find((col: any) => col.columnLabel === 'Status');
+          const name =
+            forecastColumns.length > 0 ? forecastColumns[0].rowLabel || '' : '';
+          const statusCol = forecastColumns.find(
+            (col: any) => col.columnLabel === 'Status'
+          );
           // Find matching status option object
           const statusValue = statusCol?.status || '';
-          const statusOption = this.ctbStatusOptions?.find((opt: any) => opt.value === statusValue || opt.label === statusValue) || null;
-          const totalCol = forecastColumns.find((col: any) => col.columnLabel === 'Total');
-          const monthAmounts = (this.columns || []).slice(3).map((colLabel: string) => {
-            const col = forecastColumns.find((c: any) => c.columnLabel === colLabel);
-            return { amount: col?.amount || 0 };
-          });
+          const statusOption =
+            this.ctbStatusOptions?.find(
+              (opt: any) =>
+                opt.value === statusValue || opt.label === statusValue
+            ) || null;
+          const totalCol = forecastColumns.find(
+            (col: any) => col.columnLabel === 'Total'
+          );
+          const monthAmounts = (this.columns || [])
+            .slice(3)
+            .map((colLabel: string) => {
+              const col = forecastColumns.find(
+                (c: any) => c.columnLabel === colLabel
+              );
+              return { amount: col?.amount || 0 };
+            });
           return {
             name,
             status: statusOption,
-            columns: [
-              { amount: totalCol?.amount || 0 },
-              ...monthAmounts
-            ]
+            columns: [{ amount: totalCol?.amount || 0 }, ...monthAmounts],
           };
         });
       },
@@ -562,5 +582,70 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
       }
     }
     return 999999; // fallback for other rows
+  }
+
+  onAmountChange(row: any, col: any, i: number, newValue: number) {
+    // Prevent negative values
+    if (newValue < 0) {
+      col.amount = 0;
+      // Force input to update its display
+      setTimeout(() => {
+        const input = document.activeElement as HTMLInputElement;
+        if (input && input.type === 'number') {
+          input.value = '0';
+        }
+      }, 0);
+      return;
+    }
+
+    // Check remaining capacity constraint for RTB and CTB rows
+    const rowLabel = row.forecastColumns[0].rowLabel;
+    if (rowLabel === 'RTB' || rowLabel === 'Capacity Requested by (CTB)') {
+      // Calculate remaining capacity for this month
+      const forecastedRow = this.forecastRows.find((r: any) =>
+        r.forecastColumns[0].rowLabel?.includes('Forecasted')
+      );
+      const rtbRow = this.forecastRows.find(
+        (r: any) => r.forecastColumns[0].rowLabel === 'RTB'
+      );
+      const ctbRow = this.forecastRows.find(
+        (r: any) => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)'
+      );
+
+      if (forecastedRow && rtbRow && ctbRow && forecastedRow.forecastColumns[i]) {
+        const forecasted = forecastedRow.forecastColumns[i].amount || 0;
+        const currentRtb = rtbRow.forecastColumns[i].amount || 0;
+        const currentCtb = ctbRow.forecastColumns[i].amount || 0;
+        
+        // Calculate max allowed based on which row is being edited
+        let maxAllowed = 0;
+        if (rowLabel === 'RTB') {
+          maxAllowed = forecasted - currentCtb;
+        } else { // CTB
+          maxAllowed = forecasted - currentRtb;
+        }
+
+        if (newValue > maxAllowed) {
+          const correctedValue = Math.max(0, maxAllowed);
+          col.amount = correctedValue;
+          this.messageService.add({
+            severity: 'warn',
+            summary: 'Max Capacity',
+            detail: 'Cannot exceed Remaining Capacity!',
+            life: 10000,
+          });
+          // Force input to update its display to the corrected value
+          setTimeout(() => {
+            const input = document.activeElement as HTMLInputElement;
+            if (input && input.type === 'number') {
+              input.value = correctedValue.toString();
+            }
+          }, 0);
+          return;
+        }
+      }
+    }
+
+    col.amount = newValue;
   }
 }
