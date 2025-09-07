@@ -11,7 +11,17 @@
       style="margin-bottom: 1rem"
     ></button>
   </div>
-  <div *ngIf="forecastRows.length > 0">
+  
+  <!-- Loading Spinner -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="spinner-wrapper">
+      <i class="pi pi-spin pi-spinner" style="font-size: 3rem; color: #007bff;"></i>
+      <p style="margin-top: 1rem; font-size: 1.1rem; color: #666;">Loading capacity data...</p>
+    </div>
+  </div>
+  
+  <!-- Main Content -->
+  <div *ngIf="!isLoading && forecastRows.length > 0">
     <div
       class="table-scroll-wrapper"
       #topTableScroll

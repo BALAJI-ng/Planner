@@ -1,3 +1,26 @@
+// Loading spinner styles
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  width: 100%;
+}
+
+.spinner-wrapper {
+  text-align: center;
+  padding: 2rem;
+  
+  .pi-spinner {
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 .ctb-search-wrapper {
   position: relative;
   display: inline-block;
@@ -687,21 +710,27 @@ td.sticky-col, td.sticky-status, td.sticky-total {
   
   /* Custom scrollbar styling */
   &::-webkit-scrollbar {
-    height: 8px;
+    height: 16px;
   }
   
   &::-webkit-scrollbar-track {
     background: #f1f1f1;
-    border-radius: 4px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
   }
   
   &::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 4px;
+    background: #666;
+    border-radius: 8px;
+    border: 2px solid #f1f1f1;
   }
   
   &::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: #444;
+  }
+  
+  &::-webkit-scrollbar-thumb:active {
+    background: #222;
   }
 }
 

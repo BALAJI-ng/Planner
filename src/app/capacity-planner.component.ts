@@ -241,7 +241,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     }
     // Always set the amount to the validated value
     this.ctbRows[ctbIdx].columns[colIdx].amount = newValue;
-    
+
     // If the value was corrected, force update the input field immediately
     if (newValue !== inputValue) {
       setTimeout(() => {
@@ -256,7 +256,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
         }
       }, 0);
     }
-    
+
     this.updateCTBRow();
   }
   updateCTBRow() {
@@ -744,6 +744,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
   }
   forecastRows: ForecastRow[] = [];
   columns: string[] = [];
+  isLoading: boolean = true;
 
   constructor(
     private http: HttpClient,
@@ -751,6 +752,15 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
   ) {}
 
   ngOnInit() {
+    this.isLoading = true;
+    
+    // Add 3 second delay for testing
+    setTimeout(() => {
+      this.loadData();
+    }, 3000);
+  }
+
+  loadData() {
     this.http
       .get<any>('http://localhost:3001/capacityTop')
       .subscribe((data) => {
@@ -769,9 +779,10 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
         } else {
           this.columns = [];
         }
+        
+        // Load bottom table after top table is loaded
+        this.callBottomTable();
       });
-
-    this.callBottomTable();
   }
 
   callBottomTable() {
@@ -813,9 +824,13 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
             columns: monthAmounts,
           };
         });
+        
+        // Both tables are now loaded
+        this.isLoading = false;
       },
       (error) => {
         console.error('Failed to fetch CTB table data:', error);
+        this.isLoading = false; // Stop loading even on error
       }
     );
   }
