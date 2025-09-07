@@ -1,16 +1,29 @@
 <div class="capacity-planner">
-  <div class="section-header">
-    <span class="section-title">Capacity Plan</span>
-    <button
-      pButton
-      type="button"
-      label="Export to Excel"
-      icon="pi pi-file-excel"
-      (click)="exportToExcel()"
-      class="excel-btn"
-      style="margin-bottom: 1rem"
-    ></button>
+  <!-- Loading Spinner -->
+  <div *ngIf="isLoading" class="loading-container">
+    <p-progressSpinner 
+      [style]="{ width: '50px', height: '50px' }" 
+      strokeWidth="4" 
+      fill="transparent"
+      animationDuration="1s">
+    </p-progressSpinner>
+    <p style="margin-top: 1rem; font-size: 1.1rem; color: #666;">Loading capacity data...</p>
   </div>
+
+  <!-- Main Content (only show when not loading) -->
+  <div *ngIf="!isLoading">
+    <div class="section-header">
+      <span class="section-title">Capacity Plan</span>
+      <button
+        pButton
+        type="button"
+        label="Export to Excel"
+        icon="pi pi-file-excel"
+        (click)="exportToExcel()"
+        class="excel-btn"
+        style="margin-bottom: 1rem"
+      ></button>
+    </div>
   <div *ngIf="forecastRows.length > 0">
     <div
       class="table-scroll-wrapper"

@@ -744,6 +744,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
   }
   forecastRows: ForecastRow[] = [];
   columns: string[] = [];
+  isLoading: boolean = true;
 
   constructor(
     private http: HttpClient,
@@ -751,6 +752,15 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
   ) {}
 
   ngOnInit() {
+    this.isLoading = true;
+    
+    // Add 3-second delay for testing
+    setTimeout(() => {
+      this.loadData();
+    }, 3000);
+  }
+
+  private loadData() {
     this.http
       .get<any>('http://localhost:3001/capacityTop')
       .subscribe((data) => {
@@ -769,9 +779,10 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
         } else {
           this.columns = [];
         }
+        
+        // Load bottom table after top table is loaded
+        this.callBottomTable();
       });
-
-    this.callBottomTable();
   }
 
   callBottomTable() {
@@ -813,9 +824,14 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
             columns: monthAmounts,
           };
         });
+        
+        // Both tables are loaded, hide spinner
+        this.isLoading = false;
       },
       (error) => {
         console.error('Failed to fetch CTB table data:', error);
+        // Hide spinner even on error
+        this.isLoading = false;
       }
     );
   }
