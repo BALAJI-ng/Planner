@@ -225,10 +225,14 @@
         (scroll)="onBottomTableScroll($event)"
       >
         <p-table
+          #ctbTableRef
           id="ctb-table"
           [value]="ctbRows"
           class="plan-table ctb-table"
           [scrollable]="false"
+          [paginator]="true"
+          [rows]="5"
+          [totalRecords]="ctbRows.length"
         >
           <ng-template pTemplate="header">
             <tr>
@@ -395,7 +399,6 @@
                 </td>
                 <ng-container *ngFor="let col of ctb.columns; let i = index">
                   <td
-                    *ngIf="i > 0"
                     class="month-cell"
                     style="padding-left: 8px"
                   >

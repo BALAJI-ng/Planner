@@ -7,6 +7,7 @@ import {
   AfterViewInit,
   ElementRef,
 } from '@angular/core';
+import { Table } from 'primeng/table';
 import { HttpClient } from '@angular/common/http';
 import { MessageService } from 'primeng/api';
 import * as ExcelJS from 'exceljs';
@@ -32,6 +33,8 @@ export interface ForecastRow {
   styleUrls: ['./capacity-planner.component.scss'],
 })
 export class CapacityPlannerComponent implements OnInit, AfterViewInit {
+  // Reference to CTB table for paginator control
+  @ViewChild('ctbTableRef') ctbTableRef?: Table;
   getCTBMaxAllowed(ctbIdx: number, colIdx: number): number {
     const forecastedRow = this.forecastRows.find((r: any) =>
       r.forecastColumns[0].rowLabel?.includes('Forecasted')
@@ -105,14 +108,23 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
   }
   // ...existing code...
   getCTBTotal(ctb: any): number {
-    // Only return the value from the mapped Total column
+    // Calculate total by summing all month columns
     return ctb.columns && ctb.columns.length > 0
-      ? ctb.columns[0].amount || 0
+      ? ctb.columns.reduce(
+          (total: number, col: any) => total + (col.amount || 0),
+          0
+        )
       : 0;
   }
   deleteCTBRow(idx: number) {
     this.ctbRows.splice(idx, 1);
     this.updateCTBRow();
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Record Deleted',
+      detail: 'CTB record deleted successfully!',
+      life: 3000,
+    });
   }
 
   addCTBComment(idx: number) {
@@ -157,10 +169,23 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
   }> = [];
 
   addCTBRow() {
-    // Create columns for each month (skip label and total)
-    const columns = this.columns.slice(1).map(() => ({ amount: 0 }));
+    // Create columns for each month that has data (skip label and total, only include months with data)
+    const actualDataColumns =
+      this.forecastRows.length > 0
+        ? this.forecastRows[0].forecastColumns
+            .slice(1)
+            .filter((col) => col.month != null && col.year != null)
+        : [];
+    const columns = actualDataColumns.map(() => ({ amount: 0 }));
     this.ctbRows.push({ name: '', columns, status: undefined });
     this.updateCTBRow();
+    // Move paginator to last page after adding
+    setTimeout(() => {
+      if (this.ctbTableRef && this.ctbRows.length > 5) {
+        const totalPages = Math.ceil(this.ctbRows.length / 5);
+        this.ctbTableRef.first = (totalPages - 1) * 5;
+      }
+    }, 100);
   }
 
   // Removed stray code from previous patch attempts
@@ -237,9 +262,21 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
       ctbRow.forecastColumns[i].amount = sum;
     }
   }
+
+  // Helper method to convert column number to Excel column name (A, B, C, ..., Z, AA, AB, etc.)
+  private getExcelColumnName(columnNumber: number): string {
+    let result = '';
+    while (columnNumber > 0) {
+      columnNumber--;
+      result = String.fromCharCode(65 + (columnNumber % 26)) + result;
+      columnNumber = Math.floor(columnNumber / 26);
+    }
+    return result;
+  }
+
   exportToExcel() {
     // Prepare header for main table
-    const header = ['Row Label', 'Total'];
+    const header = ['Row Label', '', 'Total'];
     const monthNames = [
       'Jan',
       'Feb',
@@ -267,6 +304,8 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     const dataRows = this.forecastRows.map((row) => {
       const rowArr: any[] = [];
       rowArr.push(row.forecastColumns[0].rowLabel);
+      // Empty column
+      rowArr.push('');
       // Total column
       if (row.forecastColumns[0].rowLabel === 'Forecasted Capacity') {
         rowArr.push(this.getForecastedCapacityTotal(row));
@@ -296,7 +335,9 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     });
 
     // Prepare CTB Details header
-    const ctbHeader = ['CTB Name', 'Total'];
+    const ctbHeader = ['CTB Name', 'Status', 'Total'];
+
+    // Add the 24 months to CTB header (D19 to AA19) - ensuring exactly 24 months are shown
     if (this.forecastRows.length > 0) {
       this.forecastRows[0].forecastColumns.slice(1).forEach((col) => {
         if (col.month != null && col.year != null) {
@@ -310,10 +351,16 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     const ctbDataRows = this.ctbRows.map((ctb) => {
       const rowArr: any[] = [];
       rowArr.push(ctb.name || '');
+      // Status
+      const statusValue =
+        typeof ctb.status === 'object' && ctb.status
+          ? (ctb.status as any).label || (ctb.status as any).value
+          : ctb.status || '';
+      rowArr.push(statusValue);
       // Total
       rowArr.push(this.getCTBTotal(ctb));
-      // Month columns (skip the first column, which is Total)
-      for (let i = 1; i < ctb.columns.length; i++) {
+      // Month columns - only add columns that correspond to actual data months
+      for (let i = 0; i < ctb.columns.length; i++) {
         rowArr.push(ctb.columns[i].amount != null ? ctb.columns[i].amount : 0);
       }
       return rowArr;
@@ -322,27 +369,224 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     // Create workbook and worksheets
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Capacity Plan');
+
+    // Add header section (rows 1-7)
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      month: 'numeric',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    worksheet.addRow(['PRD0000679: New Product-Leela']);
+    worksheet.addRow(['Status', 'Draft']);
+    worksheet.addRow(['Date Created', currentDate]);
+    worksheet.addRow(['']); // Empty row
+    worksheet.addRow(['']); // Empty row
+    worksheet.addRow(['']); // Empty row
+    worksheet.addRow(['']); // Empty row
+
+    // Add main table header (row 8)
+    worksheet.addRow(['Capacity Plan']);
     worksheet.addRow(header);
     dataRows.forEach((row) => worksheet.addRow(row));
-    // Add a blank row between tables
-    worksheet.addRow([]);
-    // Add CTB Details header and data
-    worksheet.addRow(ctbHeader);
+
+    // Merge cells for header section
+    worksheet.mergeCells('A1:D1'); // Product name
+    worksheet.mergeCells('B2:D2'); // Status row
+    worksheet.mergeCells('B3:D3'); // Date Created row
+
+    // Calculate the last column for "Capacity Plan" title based on actual data
+    const capacityPlanLastColumn = this.getExcelColumnName(
+      3 +
+        (this.forecastRows.length > 0
+          ? this.forecastRows[0].forecastColumns.filter(
+              (col) => col.month != null && col.year != null
+            ).length
+          : 24)
+    );
+    worksheet.mergeCells(`A8:${capacityPlanLastColumn}8`); // "Capacity Plan" title
+
+    // Format "Capacity Plan" header
+    const capacityPlanCell = worksheet.getCell('A8');
+    capacityPlanCell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9D9D9' },
+    };
+    capacityPlanCell.font = { bold: true };
+
+    // Make A1 bold
+    worksheet.getCell('A1').font = { bold: true };
+
+    // Merge cells for main table row labels
+    const headerRowIndex = 9; // Row with "Row Label", "Total", etc.
+    worksheet.mergeCells(`A${headerRowIndex}:B${headerRowIndex}`);
+
+    // Format main table header row (row 9) - make it bold
+    const mainHeaderRow = worksheet.getRow(headerRowIndex);
+    mainHeaderRow.eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' },
+      };
+    });
+
+    // Merge row labels for each data row
+    for (let i = 0; i < dataRows.length; i++) {
+      const rowIndex = headerRowIndex + 1 + i;
+      worksheet.mergeCells(`A${rowIndex}:B${rowIndex}`);
+    }
+
+    // Add spacing and CTB Details section
+    const ctbStartRow = headerRowIndex + dataRows.length + 1; // Adjusted to place CTB at row 18
+    worksheet.addRow(['']); // Empty row (row 14)
+    worksheet.addRow(['']); // Empty row (row 15)
+    worksheet.addRow(['']); // Empty row (row 16)
+    worksheet.addRow(['']); // Empty row (row 17)
+    worksheet.addRow(['Capacity Requested By (CTB)']); // Row 18
+    worksheet.addRow(ctbHeader); // Row 19
+
+    // Merge CTB section header (row 18) - span only across actual data columns
+    const lastColumnLetter = this.getExcelColumnName(ctbHeader.length);
+    worksheet.mergeCells(`A18:${lastColumnLetter}18`);
+    const ctbTitleCell = worksheet.getCell('A18');
+    ctbTitleCell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9D9D9' },
+    };
+    ctbTitleCell.font = { bold: true, size: 11 };
+    ctbTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    ctbTitleCell.border = {
+      top: { style: 'thin', color: { argb: 'FF000000' } },
+      left: { style: 'thin', color: { argb: 'FF000000' } },
+      bottom: { style: 'thin', color: { argb: 'FF000000' } },
+      right: { style: 'thin', color: { argb: 'FF000000' } },
+    };
+
+    // Format CTB header row (row 19) - make it bold
+    const ctbHeaderRowIndex = 19;
+    const ctbHeaderRow = worksheet.getRow(ctbHeaderRowIndex);
+    ctbHeaderRow.eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' },
+      };
+    });
+
     if (this.ctbRows.length > 0) {
       ctbDataRows.forEach((row) => worksheet.addRow(row));
     } else {
       worksheet.addRow(['No CTB records found']);
     }
-    worksheet.eachRow((row) => {
-      row.eachCell((cell) => {
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FF000000' } },
-          left: { style: 'thin', color: { argb: 'FF000000' } },
-          bottom: { style: 'thin', color: { argb: 'FF000000' } },
-          right: { style: 'thin', color: { argb: 'FF000000' } },
-        };
+
+    // Apply formatting to all cells
+    worksheet.eachRow((row, rowNumber) => {
+      row.eachCell((cell, colNumber) => {
+        // Center align all cells
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Apply borders to most cells, except specific ones
+        const shouldRemoveBorder =
+          (rowNumber >= 4 && rowNumber <= 7 && colNumber === 1) || // A4:A7
+          (rowNumber >= 14 && rowNumber <= 17 && colNumber === 1) || // A14:A17 - no border
+          (rowNumber >= 14 && rowNumber <= 15 && colNumber === 2); // B14:B15
+
+        if (!shouldRemoveBorder) {
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FF000000' } },
+            left: { style: 'thin', color: { argb: 'FF000000' } },
+            bottom: { style: 'thin', color: { argb: 'FF000000' } },
+            right: { style: 'thin', color: { argb: 'FF000000' } },
+          };
+        }
       });
     });
+
+    // Make specific cells bold and adjust formatting
+    worksheet.getCell('A2').font = { bold: true };
+    worksheet.getCell('A3').font = { bold: true };
+
+    // Set column widths
+    worksheet.getColumn('A').width = 20;
+    worksheet.getColumn('B').width = 12;
+    worksheet.getColumn('C').width = 12;
+
+    // Set width for monthly columns
+    for (let i = 4; i <= 30; i++) {
+      worksheet.getColumn(i).width = 10;
+    }
+
+    // Re-apply specific formatting after general formatting to ensure it takes precedence
+
+    // Re-format "Capacity Plan" header (row 8)
+    const capacityPlanCellFinal = worksheet.getCell('A8');
+    capacityPlanCellFinal.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9D9D9' },
+    };
+    capacityPlanCellFinal.font = { bold: true };
+
+    // Re-format main table header row (row 9)
+    const mainHeaderRowFinal = worksheet.getRow(9);
+    mainHeaderRowFinal.eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' },
+      };
+    });
+
+    // Re-format CTB title (row 18) - ensure formatting is applied
+    const ctbTitleCellFinal = worksheet.getCell('A18');
+    ctbTitleCellFinal.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9D9D9' },
+    };
+    ctbTitleCellFinal.font = { bold: true, size: 11 };
+    ctbTitleCellFinal.alignment = { horizontal: 'center', vertical: 'middle' };
+    ctbTitleCellFinal.border = {
+      top: { style: 'thin', color: { argb: 'FF000000' } },
+      left: { style: 'thin', color: { argb: 'FF000000' } },
+      bottom: { style: 'thin', color: { argb: 'FF000000' } },
+      right: { style: 'thin', color: { argb: 'FF000000' } },
+    };
+
+    // Re-format CTB header row (row 19)
+    const ctbHeaderRowFinal = worksheet.getRow(19);
+    ctbHeaderRowFinal.eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' },
+      };
+    });
+
+    // Ensure CTB data rows have no background color (clear any inherited formatting)
+    if (this.ctbRows.length > 0) {
+      const ctbDataStartRow = 20; // Row 20 onwards
+      for (let i = 0; i < this.ctbRows.length; i++) {
+        const dataRow = worksheet.getRow(ctbDataStartRow + i);
+        dataRow.eachCell((cell) => {
+          // Clear any background fill for data rows
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFFFFFF' }, // White background
+          };
+        });
+      }
+    }
 
     workbook.xlsx.writeBuffer().then((buffer) => {
       saveAs(new Blob([buffer]), 'capacity_plan.xlsx');
@@ -536,18 +780,22 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
           const totalCol = forecastColumns.find(
             (col: any) => col.columnLabel === 'Total'
           );
-          const monthAmounts = (this.columns || [])
-            .slice(3)
-            .map((colLabel: string) => {
-              const col = forecastColumns.find(
-                (c: any) => c.columnLabel === colLabel
-              );
-              return { amount: col?.amount || 0 };
-            });
+          const monthAmounts =
+            this.forecastRows.length > 0
+              ? this.forecastRows[0].forecastColumns
+                  .slice(1)
+                  .filter((col) => col.month != null && col.year != null)
+                  .map((col: any) => {
+                    const matchingCol = forecastColumns.find(
+                      (c: any) => c.columnLabel === col.columnLabel
+                    );
+                    return { amount: matchingCol?.amount || 0 };
+                  })
+              : [];
           return {
             name,
             status: statusOption,
-            columns: [{ amount: totalCol?.amount || 0 }, ...monthAmounts],
+            columns: monthAmounts,
           };
         });
       },
