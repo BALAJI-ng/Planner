@@ -45,12 +45,12 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     if (
       forecastedRow &&
       rtbRow &&
-      forecastedRow.forecastColumns[colIdx + 1] &&
-      rtbRow.forecastColumns[colIdx + 1]
+      forecastedRow.forecastColumns[colIdx + 2] &&
+      rtbRow.forecastColumns[colIdx + 2]
     ) {
       const maxValue =
-        (forecastedRow.forecastColumns[colIdx + 1].amount || 0) -
-        (rtbRow.forecastColumns[colIdx + 1].amount || 0);
+        (forecastedRow.forecastColumns[colIdx + 2].amount || 0) -
+        (rtbRow.forecastColumns[colIdx + 2].amount || 0);
       let sumOtherRows = 0;
       for (let i = 0; i < this.ctbRows.length; i++) {
         if (i !== ctbIdx) {
@@ -204,12 +204,12 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     if (
       forecastedRow &&
       rtbRow &&
-      forecastedRow.forecastColumns[colIdx + 1] &&
-      rtbRow.forecastColumns[colIdx + 1]
+      forecastedRow.forecastColumns[colIdx + 2] &&
+      rtbRow.forecastColumns[colIdx + 2]
     ) {
       const maxValue =
-        (forecastedRow.forecastColumns[colIdx + 1].amount || 0) -
-        (rtbRow.forecastColumns[colIdx + 1].amount || 0);
+        (forecastedRow.forecastColumns[colIdx + 2].amount || 0) -
+        (rtbRow.forecastColumns[colIdx + 2].amount || 0);
       // Calculate sum of all CTB rows for this month except the current row
       let sumOtherRows = 0;
       for (let i = 0; i < this.ctbRows.length; i++) {
@@ -227,21 +227,36 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
           detail: 'Cannot exceed Remaining Capacity!',
           life: 10000,
         });
-        // Force input to display corrected value
+        // Force input to display corrected value - fix the input selection
         setTimeout(() => {
           const inputs = document.querySelectorAll(
-            '#ctb-table input[type="number"]'
+            `#ctb-table tbody tr:nth-child(${ctbIdx + 1}) input[type="number"]`
           );
-          const targetInput = inputs[
-            ctbIdx * (this.ctbRows[0]?.columns?.length - 1 || 0) + colIdx - 1
-          ] as HTMLInputElement;
+          const targetInput = inputs[colIdx] as HTMLInputElement;
           if (targetInput) {
             targetInput.value = newValue.toString();
           }
         }, 0);
       }
     }
+    // Always set the amount to the validated value
     this.ctbRows[ctbIdx].columns[colIdx].amount = newValue;
+    
+    // If the value was corrected, force update the input field immediately
+    if (newValue !== inputValue) {
+      setTimeout(() => {
+        const inputs = document.querySelectorAll(
+          `#ctb-table tbody tr:nth-child(${ctbIdx + 1}) input[type="number"]`
+        );
+        const targetInput = inputs[colIdx] as HTMLInputElement;
+        if (targetInput) {
+          targetInput.value = newValue.toString();
+          // Also trigger change event to update ngModel
+          targetInput.dispatchEvent(new Event('input'));
+        }
+      }, 0);
+    }
+    
     this.updateCTBRow();
   }
   updateCTBRow() {
@@ -251,12 +266,12 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     );
     if (!ctbRow) return;
     // For each month column, sum all CTB rows and update the top table
-    for (let i = 1; i < ctbRow.forecastColumns.length; i++) {
+    for (let i = 2; i < ctbRow.forecastColumns.length; i++) {
       let sum = 0;
       for (const ctb of this.ctbRows) {
         sum +=
-          typeof ctb.columns[i - 1].amount === 'number'
-            ? ctb.columns[i - 1].amount || 0
+          typeof ctb.columns[i - 2].amount === 'number'
+            ? ctb.columns[i - 2].amount || 0
             : 0;
       }
       ctbRow.forecastColumns[i].amount = sum;

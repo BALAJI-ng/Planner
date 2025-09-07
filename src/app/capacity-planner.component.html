@@ -398,10 +398,7 @@
                   >
                 </td>
                 <ng-container *ngFor="let col of ctb.columns; let i = index">
-                  <td
-                    class="month-cell"
-                    style="padding-left: 8px"
-                  >
+                  <td class="month-cell" style="padding-left: 8px">
                     <input
                       #ctbAmountInput
                       type="number"
@@ -417,8 +414,8 @@
                       [disabled]="
                         !isEditable(
                           'Capacity Requested by (CTB)',
-                          getMonth(i + 1),
-                          getYear(i + 1)
+                          getMonth(i + 2),
+                          getYear(i + 2)
                         )
                       "
                       style="width: 100%; box-sizing: border-box"
