@@ -10,6 +10,7 @@ import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { ToastModule } from 'primeng/toast';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MessageService } from 'primeng/api';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
@@ -29,6 +30,7 @@ import { CapacityEffects } from './state/capacity.effects';
     InputTextModule,
     ToastModule,
     DropdownModule,
+    ProgressSpinnerModule,
     BrowserAnimationsModule,
     FormsModule,
     HttpClientModule,
