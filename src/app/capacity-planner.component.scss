@@ -617,7 +617,7 @@ td.sticky-col, td.sticky-status, td.sticky-total {
   width: 150px !important;
   min-width: 150px !important;
   max-width: 150px !important;
-  height: 36px; /* Adjust height */
+  height: 30px; /* Adjust height */
 }
 ::ng-deep .p-dropdown .p-dropdown-label {
   padding: 0.3rem 0.5rem; /* Adjust label padding */
@@ -746,6 +746,33 @@ td.sticky-col, td.sticky-status, td.sticky-total {
   
   .p-datatable-scrollable-body {
     overflow: visible !important;
+  }
+}
+
+// CTB Name dropdown panel styling
+::ng-deep .ctb-name-dropdown-panel {
+  min-width: 300px !important;
+  width: auto !important;
+  
+  .p-dropdown-items {
+    width: 100% !important;
+    
+    .p-dropdown-item {
+      white-space: nowrap !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+      padding: 8px 12px !important;
+      min-width: 280px !important;
+    }
+  }
+}
+
+// CTB Name dropdown field styling
+::ng-deep .ctb-name-dropdown {
+  .p-dropdown-label {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 }
 

@@ -355,16 +355,43 @@
                         (click)="addCTBComment(ctbIdx)"
                         title="Add Comment"
                       ></button>
-                      <label
+
+                      <!-- Show dropdown for new rows -->
+                      <p-dropdown
+                        *ngIf="ctb.isNewRow"
+                        [options]="ctbNameOptions"
+                        [(ngModel)]="ctb.selectedCTBOption"
+                        optionLabel="planningToolDisplayName"
+                        placeholder="Select CTB Name"
+                        (onChange)="onCTBNameSelect(ctbIdx, $event.value)"
+                        [appendTo]="'body'"
+                        [autoZIndex]="true"
+                        [baseZIndex]="10000"
+                        panelStyleClass="ctb-name-dropdown-panel"
+                        [style]="{ width: '280px' }"
+                        styleClass="ctb-name-dropdown"
+                        scrollHeight="200px"
+                      ></p-dropdown>
+
+                      <!-- Show label when value is available -->
+                      <span
+                        *ngIf="!ctb.isNewRow && ctb.name"
                         style="
                           display: inline-block;
-                          min-width: 240px;
-                          max-width: 480px;
-                          color: #888;
-                          font-style: italic;
+                          width: auto;
+                          min-width: 280px;
+                          padding: 4px 8px;
+                          font-size: 14px;
+                          color: #333;
+                          background-color: #f9f9f9;
+
+                          border-radius: 4px;
+                          white-space: nowrap;
                         "
-                        >{{ ctb.name }}</label
+                        [title]="ctb.name"
                       >
+                        {{ ctb.name }}
+                      </span>
                     </div>
                   </td>
                   <td

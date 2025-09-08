@@ -3348,5 +3348,26 @@
         }
       ]
     }
+  ],
+  "newRecordCTBNameDropdDown": [
+    {
+       "bcId": 71,
+        "planningToolDisplayName": "PRG0001453 (BCID:71)",
+         "subInitiativeName": "Innovation Blockchain",
+         "creationTime": "2025-05-08T14:23:35.319746"
+    },
+    {
+      "bcId": 72,
+      "planningToolDisplayName": "PRG0001454 (BCID:72)",
+      "subInitiativeName": "Innovation Blockchain",
+      "creationTime": "2025-05-08T14:23:35.319746"
+    },
+    {
+      "bcId": 73,
+      "planningToolDisplayName": "PRG0001455 (BCID:73)",
+      "subInitiativeName": "Innovation Blockchain",
+      "creationTime": "2025-05-08T14:23:35.319746"
+    }
   ]
 }
+

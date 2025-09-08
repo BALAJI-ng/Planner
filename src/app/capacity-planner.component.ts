@@ -162,30 +162,94 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     { label: 'Canceled', value: 'Canceled' },
     { label: 'Prioritized', value: 'Prioritized' },
   ];
+
+  // CTB Name dropdown options for new rows
+  ctbNameOptions: Array<{
+    bcId: number;
+    planningToolDisplayName: string;
+    subInitiativeName: string;
+    creationTime: string;
+  }> = [];
+
   ctbRows: Array<{
     name: string;
     columns: { amount: number | null }[];
     status?: string;
+    isNewRow?: boolean;
+    selectedCTBOption?: any;
   }> = [];
 
   addCTBRow() {
-    // Create columns for each month that has data (skip label and total, only include months with data)
-    const actualDataColumns =
-      this.forecastRows.length > 0
-        ? this.forecastRows[0].forecastColumns
-            .slice(1)
-            .filter((col) => col.month != null && col.year != null)
-        : [];
-    const columns = actualDataColumns.map(() => ({ amount: 0 }));
-    this.ctbRows.push({ name: '', columns, status: undefined });
-    this.updateCTBRow();
-    // Move paginator to last page after adding
-    setTimeout(() => {
-      if (this.ctbTableRef && this.ctbRows.length > 5) {
-        const totalPages = Math.ceil(this.ctbRows.length / 5);
-        this.ctbTableRef.first = (totalPages - 1) * 5;
-      }
-    }, 100);
+    // First, load CTB name options from API
+    this.http
+      .get<any>('http://localhost:3001/newRecordCTBNameDropdDown')
+      .subscribe(
+        (response) => {
+          this.ctbNameOptions = response;
+
+          // Create columns for each month that has data (skip label and total, only include months with data)
+          const actualDataColumns =
+            this.forecastRows.length > 0
+              ? this.forecastRows[0].forecastColumns
+                  .slice(1)
+                  .filter((col) => col.month != null && col.year != null)
+              : [];
+          const columns = actualDataColumns.map(() => ({ amount: 0 }));
+
+          // Add new row with isNewRow flag
+          this.ctbRows.push({
+            name: '',
+            columns,
+            status: undefined,
+            isNewRow: true,
+            selectedCTBOption: null,
+          });
+
+          this.updateCTBRow();
+          // Move paginator to last page after adding
+          setTimeout(() => {
+            if (this.ctbTableRef && this.ctbRows.length > 5) {
+              const totalPages = Math.ceil(this.ctbRows.length / 5);
+              this.ctbTableRef.first = (totalPages - 1) * 5;
+            }
+          }, 100);
+        },
+        (error) => {
+          console.error('Error loading CTB name options:', error);
+          // Still add the row even if API fails, fallback to input field
+          const actualDataColumns =
+            this.forecastRows.length > 0
+              ? this.forecastRows[0].forecastColumns
+                  .slice(1)
+                  .filter((col) => col.month != null && col.year != null)
+              : [];
+          const columns = actualDataColumns.map(() => ({ amount: 0 }));
+          this.ctbRows.push({
+            name: '',
+            columns,
+            status: undefined,
+            isNewRow: true,
+            selectedCTBOption: null,
+          });
+          this.updateCTBRow();
+          setTimeout(() => {
+            if (this.ctbTableRef && this.ctbRows.length > 5) {
+              const totalPages = Math.ceil(this.ctbRows.length / 5);
+              this.ctbTableRef.first = (totalPages - 1) * 5;
+            }
+          }, 100);
+        }
+      );
+  }
+
+  // Handle CTB name selection from dropdown
+  onCTBNameSelect(ctbIdx: number, selectedOption: any) {
+    if (selectedOption) {
+      this.ctbRows[ctbIdx].selectedCTBOption = selectedOption;
+      this.ctbRows[ctbIdx].name = selectedOption.planningToolDisplayName;
+      // Mark as no longer a new row since a selection has been made
+      this.ctbRows[ctbIdx].isNewRow = false;
+    }
   }
 
   // Removed stray code from previous patch attempts
@@ -822,6 +886,8 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
             name,
             status: statusOption,
             columns: monthAmounts,
+            isNewRow: false, // Existing rows are not new
+            selectedCTBOption: null,
           };
         });
 
