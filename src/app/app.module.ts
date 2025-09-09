@@ -1,5 +1,7 @@
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { DropdownModule } from 'primeng/dropdown';
+import { DialogModule } from 'primeng/dialog';
+import { InputTextareaModule } from 'primeng/inputtextarea';
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
@@ -30,8 +32,10 @@ import { CapacityEffects } from './state/capacity.effects';
     TableModule,
     ButtonModule,
     InputTextModule,
+    InputTextareaModule,
     ToastModule,
     DropdownModule,
+    DialogModule,
     ProgressSpinnerModule,
     ConfirmDialogModule,
     BrowserAnimationsModule,

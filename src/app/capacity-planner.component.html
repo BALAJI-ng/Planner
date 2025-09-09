@@ -201,7 +201,7 @@
                         onAmountChange(row, col, i, amountInput.valueAsNumber)
                       "
                       [min]="0"
-                      [max]="100"
+                      [max]="row.forecastColumns[0].rowLabel === 'Deferred/New' ? null : 100"
                       [disabled]="
                         row.forecastColumns[0].rowLabel ===
                           'Forecasted Capacity' ||
@@ -209,6 +209,8 @@
                           'Capacity Requested by (CTB)' ||
                         row.forecastColumns[0].rowLabel ===
                           'Remaining Capacity' ||
+                        row.forecastColumns[0].rowLabel ===
+                          'Deferred/New' ||
                         col.year < currentYear ||
                         (col.year === currentYear && col.month < currentMonth)
                       "
@@ -219,6 +221,8 @@
                           'Capacity Requested by (CTB)' ||
                         row.forecastColumns[0].rowLabel ===
                           'Remaining Capacity' ||
+                        row.forecastColumns[0].rowLabel ===
+                          'Deferred/New' ||
                         col.year < currentYear ||
                         (col.year === currentYear && col.month < currentMonth)
                           ? { 'background-color': '#eee', color: '#888' }
@@ -376,10 +380,10 @@
                       <button
                         pButton
                         type="button"
-                        icon="pi pi-comment"
-                        class="p-button-info p-button-sm"
+                        [icon]="ctb.comment && ctb.comment.trim().length > 0 ? 'pi pi-pencil' : 'pi pi-comment'"
+                        class="p-button-sm p-button-info"
                         (click)="addCTBComment(ctbIdx)"
-                        title="Add Comment"
+                        [title]="ctb.comment && ctb.comment.trim().length > 0 ? 'Edit Comment: ' + ctb.comment : 'Add Comment'"
                       ></button>
 
                       <!-- Show dropdown for new rows -->
@@ -395,28 +399,39 @@
                         [baseZIndex]="10000"
                         panelStyleClass="ctb-name-dropdown-panel"
                         [style]="{ width: '280px' }"
-                        styleClass="ctb-name-dropdown"
+                        [styleClass]="'ctb-name-dropdown' + (ctb.hasNameError ? ' ctb-name-error' : '')"
                         scrollHeight="200px"
                       ></p-dropdown>
 
                       <!-- Show label when value is available -->
                       <span
                         *ngIf="!ctb.isNewRow && ctb.name"
+                        [style]="
+                          'display: inline-block; width: auto; min-width: 280px; padding: 4px 8px; font-size: 14px; color: #333; background-color: #f9f9f9; border-radius: 4px; white-space: nowrap;' +
+                          (ctb.hasNameError ? ' border: 2px solid #dc3545; box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);' : '')
+                        "
+                        [title]="ctb.name"
+                      >
+                        {{ ctb.name }}
+                      </span>
+                      
+                      <!-- Show error indicator for missing name in existing rows -->
+                      <span
+                        *ngIf="!ctb.isNewRow && !ctb.name && ctb.hasNameError"
                         style="
                           display: inline-block;
                           width: auto;
                           min-width: 280px;
                           padding: 4px 8px;
                           font-size: 14px;
-                          color: #333;
-                          background-color: #f9f9f9;
-
+                          color: #dc3545;
+                          background-color: #f8d7da;
+                          border: 2px solid #dc3545;
                           border-radius: 4px;
                           white-space: nowrap;
                         "
-                        [title]="ctb.name"
                       >
-                        {{ ctb.name }}
+                        Missing CTB Name
                       </span>
                     </div>
                   </td>
@@ -442,9 +457,10 @@
                       [appendTo]="'body'"
                       [autoZIndex]="true"
                       [baseZIndex]="10000"
+                      [disabled]="ctb.status === 'Canceled'"
                       panelStyleClass="ctb-dropdown-panel"
                       [style]="{ width: '130px', 'max-width': '130px' }"
-                      styleClass="status-dropdown"
+                      [styleClass]="'status-dropdown' + (ctb.hasStatusError ? ' ctb-status-error' : '')"
                       scrollHeight="200px"
                       (onChange)="onStatusChange(ctb, $event)"
                     >
@@ -499,12 +515,14 @@
                         "
                         [min]="0"
                         [disabled]="
+                          (ctb.status && ctb.status.toString().trim() === 'Canceled') ||
                           !isEditable(
                             'Capacity Requested by (CTB)',
                             getMonth(i + 2),
                             getYear(i + 2)
                           )
                         "
+                        [title]="'Status: ' + ctb.status + ' | Disabled: ' + (ctb.status === 'Cancelled' || !isEditable('Capacity Requested by (CTB)', getMonth(i + 2), getYear(i + 2)))"
                         style="width: 100%; box-sizing: border-box"
                       />
                     </td>
@@ -517,6 +535,51 @@
       </div>
     </div>
   </div>
+
+  <!-- Comment Dialog -->
+  <p-dialog 
+    header="Add Comment" 
+    [(visible)]="showCommentDialog" 
+    [modal]="true" 
+    [closable]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{width: '500px'}"
+    (onHide)="closeCommentDialog()">
+    
+    <div class="comment-dialog-content">
+      <div class="p-field">
+        <label for="comment" class="p-field-label">Comment <span style="color: red;">*</span></label>
+        <textarea 
+          id="comment"
+          pInputTextarea 
+          [(ngModel)]="currentCommentText"
+          rows="4" 
+          cols="50"
+          placeholder="Enter your comment here..."
+          class="p-inputtext w-full"
+          style="width: 100%; resize: vertical;">
+        </textarea>
+      </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <div class="dialog-footer">
+        <p-button 
+          label="Cancel" 
+          icon="pi pi-times" 
+          (onClick)="cancelComment()"
+          class="p-button-text">
+        </p-button>
+        <p-button 
+          label="Save" 
+          icon="pi pi-check" 
+          (onClick)="saveComment()"
+          [disabled]="!currentCommentText || currentCommentText.trim().length === 0">
+        </p-button>
+      </div>
+    </ng-template>
+  </p-dialog>
 
   <p-toast position="bottom-right" [life]="10000"></p-toast>
   <p-confirmDialog></p-confirmDialog>

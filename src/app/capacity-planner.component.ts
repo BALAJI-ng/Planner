@@ -7,6 +7,7 @@ import {
   AfterViewInit,
   ElementRef,
   HostListener,
+  ChangeDetectorRef,
 } from '@angular/core';
 import { Table } from 'primeng/table';
 import { HttpClient } from '@angular/common/http';
@@ -132,14 +133,82 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
   }
 
   addCTBComment(idx: number) {
-    // Implement comment logic here, e.g., open a dialog or set a comment property
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Comment',
-      detail: `Add comment for CTB row ${idx + 1}`,
-      life: 2000,
-    });
+    // Open comment dialog for the specified CTB row
+    this.currentCommentRowIndex = idx;
+    this.currentCommentText = this.ctbRows[idx].comment || '';
+    this.showCommentDialog = true;
   }
+
+  // Save comment for CTB row
+  saveComment() {
+    if (this.currentCommentRowIndex >= 0) {
+      const ctbRow = this.ctbRows[this.currentCommentRowIndex];
+      ctbRow.comment = this.currentCommentText.trim();
+      
+      // Prepare payload for saving comment (as shown in screenshot)
+      const commentPayload = {
+        id: 749, // This should come from the CTB row data
+        transformationUnitId: 679, // This should come from the current transformation unit
+        bcId: ctbRow.selectedCTBOption?.bcId || 54, // Get from selected CTB option
+        comment: this.currentCommentText.trim(),
+        statusId: 361 // This should be mapped from status
+      };
+      
+      console.log('💬 Comment payload prepared:', commentPayload);
+      
+      // TODO: Add actual API call to save comment
+      // this.http.post('/api/saveCTBComment', commentPayload).subscribe(...)
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Comment Saved',
+        detail: `Comment added to ${ctbRow.name}`,
+        life: 3000,
+      });
+      
+      console.log('💬 Comment saved for CTB row:', {
+        index: this.currentCommentRowIndex,
+        ctbName: ctbRow.name,
+        comment: this.currentCommentText.trim()
+      });
+    }
+    
+    this.closeCommentDialog();
+  }
+
+  // Cancel comment editing
+  cancelComment() {
+    this.closeCommentDialog();
+  }
+
+  // Close comment dialog and reset values
+  closeCommentDialog() {
+    this.showCommentDialog = false;
+    this.currentCommentText = '';
+    this.currentCommentRowIndex = -1;
+  }
+
+  // Helper method to show capacity warning toast (prevents multiple toasts)
+  private showCapacityWarning() {
+    if (this.isCapacityWarningShowing) {
+      return; // Don't show multiple warnings
+    }
+    
+    this.isCapacityWarningShowing = true;
+    this.messageService.add({
+      severity: 'warn',
+      summary: 'Max Capacity',
+      detail: 'Cannot exceed Remaining Capacity!',
+      life: 3000,
+    });
+    
+    // Reset flag after toast disappears
+    setTimeout(() => {
+      this.isCapacityWarningShowing = false;
+    }, 3000);
+  }
+
   // Helper to get month/year for CTB columns (i matches columns in CTB table)
   getMonth(i: number): number | null {
     // columns[0] is Total, columns[1...] are months
@@ -166,6 +235,13 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
     { label: 'Canceled', value: 'Canceled' },
     { label: 'Prioritized', value: 'Prioritized' },
   ];
+
+  // Validation tracking for CTB fields
+  ctbValidationErrors: Array<{
+    index: number;
+    missingName: boolean;
+    missingStatus: boolean;
+  }> = [];
 
   // Get status options with disabled state for submitted records
   getStatusOptionsForCTB(ctb: any): any[] {
@@ -211,26 +287,156 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
     // Update the status
     ctb.status = selectedValue;
     
+    // Clear status validation error
+    ctb.hasStatusError = false;
+    
+    // Handle "Canceled" status - disable and reset all months to zero
+    if (selectedValue && selectedValue.toString().trim() === 'Canceled') {
+      console.log('🚫 Status changed to Canceled - resetting all months to zero and disabling inputs');
+      console.log('🔍 CTB object structure:', ctb);
+      console.log('🔍 CTB columns before reset:', ctb.columns);
+      
+      // Force reset all month columns to zero immediately
+      if (ctb.columns && Array.isArray(ctb.columns)) {
+        for (let i = 0; i < ctb.columns.length; i++) {
+          const oldAmount = ctb.columns[i].amount;
+          ctb.columns[i].amount = 0;
+          console.log(`✅ Reset month ${i + 1} from ${oldAmount} to 0`);
+          
+          // Also mark as changed for save tracking
+          this.onCTBAmountChange(this.ctbRows.indexOf(ctb), i, 0);
+        }
+        console.log('🔍 CTB columns after reset:', ctb.columns);
+      } else {
+        console.error('❌ CTB columns not found or not an array:', ctb.columns);
+      }
+      
+      // Immediate UI update
+      this.cdr.detectChanges();
+      
+      // Show message about cancellation
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Status Updated',
+        detail: `${ctb.name} canceled - all month allocations reset to zero and disabled.`,
+        life: 4000,
+      });
+    }
+    
     // Recalculate CTB totals in main table since status affects calculation
+    console.log('🔄 Triggering CTB row recalculation due to status change...');
     this.updateCTBRow();
+    
+    // Force change detection to ensure UI updates
+    setTimeout(() => {
+      console.log('🔄 Secondary recalculation after status change...');
+      this.updateCTBRow();
+      
+      // Check for negative remaining capacity after recalculation
+      // Check whenever status changes TO Prioritized (regardless of old status)
+      if (selectedValue === 'Prioritized') {
+        console.log('🔄 Status is now Prioritized, checking capacity constraints...');
+        console.log('Old status was:', oldStatus, 'New status:', selectedValue);
+        console.log('CTB object:', ctb);
+        // Add a small delay to ensure DOM is updated
+        setTimeout(() => {
+          this.checkRemainingCapacityAfterStatusChange(ctb);
+        }, 200);
+      } else {
+        console.log('🔄 Status change does not require capacity check:', { selectedValue, oldStatus });
+      }
+    }, 0);
     
     console.log('✅ Status change successful and CTB totals recalculated');
     
-    // Show message about prioritization effect
+    // Show message about prioritization effect (only if not already handled by cancellation)
     if (selectedValue === 'Prioritized' && oldStatus !== 'Prioritized') {
       this.messageService.add({
         severity: 'info',
         summary: 'Status Updated',
         detail: 'Record marked as Prioritized - now included in main table calculations.',
-        life: 5000,
+        life: 3000,
       });
-    } else if (oldStatus === 'Prioritized' && selectedValue !== 'Prioritized') {
+    } else if (oldStatus === 'Prioritized' && selectedValue !== 'Prioritized' && selectedValue !== 'Cancelled') {
       this.messageService.add({
         severity: 'info',
         summary: 'Status Updated',
         detail: 'Record no longer Prioritized - removed from main table calculations.',
-        life: 5000,
+        life: 3000,
       });
+    }
+  }
+
+  // Check for negative remaining capacity after status change to Prioritized
+  checkRemainingCapacityAfterStatusChange(ctb: any): void {
+    console.log('🔍 STARTING capacity check for:', ctb.name);
+    
+    try {
+      // Force a small delay to ensure calculations are complete
+      setTimeout(() => {
+        console.log('🔍 Executing capacity check after delay...');
+        
+        const negativeCapacityMonths: string[] = [];
+        
+        // Find the remaining capacity row
+        const remainingCapacityRow = this.forecastRows.find(
+          (r) => r.forecastColumns[0].rowLabel === 'Remaining Capacity'
+        );
+        
+        if (!remainingCapacityRow) {
+          console.error('❌ Could not find Remaining Capacity row');
+          return;
+        }
+        
+        console.log('📊 Found remaining capacity row:', remainingCapacityRow);
+        console.log('📊 Number of columns:', remainingCapacityRow.forecastColumns.length);
+        
+        // Check each month column (skip label and total columns)
+        for (let i = 2; i < remainingCapacityRow.forecastColumns.length; i++) {
+          const column = remainingCapacityRow.forecastColumns[i];
+          const capacityValue = column?.amount || 0;
+          
+          console.log(`📅 Column ${i}:`, {
+            month: column?.month,
+            year: column?.year,
+            amount: capacityValue
+          });
+          
+          if (capacityValue < 0) {
+            const monthName = column?.month && column?.year ? 
+              `${column.month}/${column.year}` : `Column ${i}`;
+            negativeCapacityMonths.push(`${monthName} (${capacityValue})`);
+            console.log('⚠️ NEGATIVE CAPACITY FOUND:', monthName, capacityValue);
+          }
+        }
+        
+        console.log('📋 All negative capacity months:', negativeCapacityMonths);
+        
+        // Show warning if any months have negative remaining capacity
+        if (negativeCapacityMonths.length > 0) {
+          console.log('🚨 SHOWING CAPACITY EXCEEDED WARNING');
+          
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Capacity Check',
+            detail: `Changing "${ctb.name}" to Prioritized has caused negative remaining capacity in: ${negativeCapacityMonths.join(', ')}. Consider adjusting forecasted capacity or other allocations.`,
+            life: 8000,
+          });
+        } else {
+          console.log('✅ CAPACITY CHECK PASSED - No negative capacity detected');
+          
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Capacity Check',
+            detail: `${ctb.name} set to Prioritized. No capacity constraints detected.`,
+            life: 3000,
+          });
+        }
+        
+      }, 300);
+      
+    } catch (error) {
+      console.error('❌ Error in checkRemainingCapacityAfterStatusChange:', error);
     }
   }
 
@@ -248,7 +454,90 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
     status?: string;
     isNewRow?: boolean;
     selectedCTBOption?: any;
+    hasNameError?: boolean;
+    hasStatusError?: boolean;
+    comment?: string;
   }> = [];
+
+  // Comment dialog properties
+  showCommentDialog: boolean = false;
+  currentCommentText: string = '';
+  currentCommentRowIndex: number = -1;
+
+  // Validation method for CTB table
+  validateCTBTable(): { isValid: boolean; invalidRows: number[] } {
+    const invalidRows: number[] = [];
+    
+    this.ctbRows.forEach((ctb, index) => {
+      // Reset error flags
+      ctb.hasNameError = false;
+      ctb.hasStatusError = false;
+      
+      let hasError = false;
+      
+      // Check if CTB name is missing or empty
+      if (!ctb.name || ctb.name.trim() === '') {
+        ctb.hasNameError = true;
+        hasError = true;
+      }
+      
+      // Check if status is missing or empty
+      if (!ctb.status || ctb.status.trim() === '') {
+        ctb.hasStatusError = true;
+        hasError = true;
+      }
+      
+      if (hasError) {
+        invalidRows.push(index + 1); // Use 1-based index for user display
+      }
+    });
+    
+    return {
+      isValid: invalidRows.length === 0,
+      invalidRows
+    };
+  }
+
+  validateRemainingCapacity() {
+    const negativeMonths = [];
+    
+    // Find the required rows
+    const forecastedRow = this.forecastRows.find((r) =>
+      r.forecastColumns[0].rowLabel?.includes('Forecasted')
+    );
+    const rtbRow = this.forecastRows.find(
+      (r) => r.forecastColumns[0].rowLabel === 'RTB'
+    );
+    const ctbRow = this.forecastRows.find(
+      (r) => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)'
+    );
+    
+    if (forecastedRow && rtbRow && ctbRow) {
+      // Check each month column (skip label and total columns)
+      for (let i = 2; i < forecastedRow.forecastColumns.length; i++) {
+        const forecasted = forecastedRow.forecastColumns[i]?.amount || 0;
+        const rtb = rtbRow.forecastColumns[i]?.amount || 0;
+        const ctb = ctbRow.forecastColumns[i]?.amount || 0;
+        
+        const remainingCapacity = forecasted - rtb - ctb;
+        
+        console.log(`Capacity validation - Column ${i}: Forecasted=${forecasted}, RTB=${rtb}, CTB=${ctb}, Remaining=${remainingCapacity}`);
+        
+        if (remainingCapacity < 0) {
+          const monthCol = forecastedRow.forecastColumns[i];
+          if (monthCol?.month && monthCol?.year) {
+            const monthName = `${monthCol.month}/${monthCol.year}`;
+            negativeMonths.push(`${monthName} (${remainingCapacity})`);
+          }
+        }
+      }
+    }
+    
+    return {
+      isValid: negativeMonths.length === 0,
+      negativeMonths
+    };
+  }
 
   addCTBRow() {
     // First, load CTB name options from API
@@ -320,6 +609,8 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
       this.ctbRows[ctbIdx].name = selectedOption.planningToolDisplayName;
       // Mark as no longer a new row since a selection has been made
       this.ctbRows[ctbIdx].isNewRow = false;
+      // Clear name validation error
+      this.ctbRows[ctbIdx].hasNameError = false;
     }
   }
 
@@ -335,58 +626,64 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
     
     // Restrict negative values
     let inputValue = value < 0 ? 0 : value;
-    // Get Forecasted Capacity and RTB for this month
-    const forecastedRow = this.forecastRows.find((r) =>
-      r.forecastColumns[0].rowLabel?.includes('Forecasted')
-    );
-    const rtbRow = this.forecastRows.find(
-      (r) => r.forecastColumns[0].rowLabel === 'RTB'
-    );
     let newValue = inputValue;
-    if (
-      forecastedRow &&
-      rtbRow &&
-      forecastedRow.forecastColumns[colIdx + 2] &&
-      rtbRow.forecastColumns[colIdx + 2]
-    ) {
-      const maxValue =
-        (forecastedRow.forecastColumns[colIdx + 2].amount || 0) -
-        (rtbRow.forecastColumns[colIdx + 2].amount || 0);
-      // Calculate sum of only "Prioritized" CTB rows for this month except the current row
-      let sumOtherRows = 0;
-      for (let i = 0; i < this.ctbRows.length; i++) {
-        if (i !== ctbIdx) {
-          // Only include other CTB rows that are "Prioritized"
-          const otherCtb = this.ctbRows[i];
-          if (otherCtb.status === 'Prioritized') {
-            sumOtherRows += otherCtb.columns[colIdx].amount || 0;
+
+    // Skip capacity validation for Deferred, New, and Canceled statuses
+    const currentCTBStatus = this.ctbRows[ctbIdx]?.status;
+    const unrestrictedStatuses = ['Deferred', 'New', 'Canceled'];
+    
+    if (currentCTBStatus && unrestrictedStatuses.includes(currentCTBStatus)) {
+      // No capacity restrictions for these statuses
+      this.ctbRows[ctbIdx].columns[colIdx].amount = newValue;
+    } else {
+      // Apply capacity validation only for other statuses (like Prioritized)
+      // Get Forecasted Capacity and RTB for this month
+      const forecastedRow = this.forecastRows.find((r) =>
+        r.forecastColumns[0].rowLabel?.includes('Forecasted')
+      );
+      const rtbRow = this.forecastRows.find(
+        (r) => r.forecastColumns[0].rowLabel === 'RTB'
+      );
+      if (
+        forecastedRow &&
+        rtbRow &&
+        forecastedRow.forecastColumns[colIdx + 2] &&
+        rtbRow.forecastColumns[colIdx + 2]
+      ) {
+        const maxValue =
+          (forecastedRow.forecastColumns[colIdx + 2].amount || 0) -
+          (rtbRow.forecastColumns[colIdx + 2].amount || 0);
+        // Calculate sum of only "Prioritized" CTB rows for this month except the current row
+        let sumOtherRows = 0;
+        for (let i = 0; i < this.ctbRows.length; i++) {
+          if (i !== ctbIdx) {
+            // Only include other CTB rows that are "Prioritized"
+            const otherCtb = this.ctbRows[i];
+            if (otherCtb.status === 'Prioritized') {
+              sumOtherRows += otherCtb.columns[colIdx].amount || 0;
+            }
           }
         }
+        // Calculate the max allowed for this input
+        const maxAllowedForInput = Math.max(0, maxValue - sumOtherRows);
+        if (inputValue > maxAllowedForInput) {
+          newValue = maxAllowedForInput;
+          this.showCapacityWarning();
+          // Force input to display corrected value - fix the input selection
+          setTimeout(() => {
+            const inputs = document.querySelectorAll(
+              `#ctb-table tbody tr:nth-child(${ctbIdx + 1}) input[type="number"]`
+            );
+            const targetInput = inputs[colIdx] as HTMLInputElement;
+            if (targetInput) {
+              targetInput.value = newValue.toString();
+            }
+          }, 0);
+        }
       }
-      // Calculate the max allowed for this input
-      const maxAllowedForInput = Math.max(0, maxValue - sumOtherRows);
-      if (inputValue > maxAllowedForInput) {
-        newValue = maxAllowedForInput;
-        this.messageService.add({
-          severity: 'warn',
-          summary: 'Max Capacity',
-          detail: 'Cannot exceed Remaining Capacity!',
-          life: 10000,
-        });
-        // Force input to display corrected value - fix the input selection
-        setTimeout(() => {
-          const inputs = document.querySelectorAll(
-            `#ctb-table tbody tr:nth-child(${ctbIdx + 1}) input[type="number"]`
-          );
-          const targetInput = inputs[colIdx] as HTMLInputElement;
-          if (targetInput) {
-            targetInput.value = newValue.toString();
-          }
-        }, 0);
-      }
+      // Set the validated amount for restricted statuses
+      this.ctbRows[ctbIdx].columns[colIdx].amount = newValue;
     }
-    // Always set the amount to the validated value
-    this.ctbRows[ctbIdx].columns[colIdx].amount = newValue;
 
     // Track this cell change for saving
     const cellKey = `ctb_${ctbIdx}_${colIdx}`;
@@ -417,45 +714,104 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
     this.updateCTBRow();
   }
   updateCTBRow() {
+    console.log('🔄 updateCTBRow called - Current CTB records:', this.ctbRows.map(ctb => ({
+      name: ctb.name,
+      status: ctb.status,
+      hasAmounts: ctb.columns?.some((col: any) => col.amount > 0)
+    })));
+    
     // Find the CTB row in forecastRows
     const ctbRow = this.forecastRows.find(
       (r) => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)'
     );
-    if (!ctbRow) return;
     
-    console.log('🔄 Updating CTB row - filtering for Prioritized status only');
+    // Find the Deferred/New row in forecastRows
+    const deferredNewRow = this.forecastRows.find(
+      (r) => r.forecastColumns[0].rowLabel === 'Deferred/New'
+    );
     
-    // For each month column, sum only "Prioritized" CTB rows and update the top table
+    if (!ctbRow || !deferredNewRow) {
+      console.error('❌ Could not find CTB or Deferred/New rows');
+      return;
+    }
+    
+    console.log('🔄 Updating CTB and Deferred/New rows based on status filtering');
+    
+    // For each month column, calculate sums for different status groups
     for (let i = 2; i < ctbRow.forecastColumns.length; i++) {
-      let sum = 0;
+      let prioritizedSum = 0;
+      let deferredNewSum = 0;
+      let hasDeferredNewRecords = false;
       
-      // Only include CTB records with "Prioritized" status
+      // Process each CTB record and categorize by status
       for (const ctb of this.ctbRows) {
-        const isPrioritized = ctb.status === 'Prioritized';
+        const status = ctb.status;
         const amount = typeof ctb.columns[i - 2].amount === 'number' 
           ? ctb.columns[i - 2].amount || 0 
           : 0;
           
-        if (isPrioritized) {
-          sum += amount;
-          console.log('✅ Including Prioritized CTB:', {
+        if (status === 'Prioritized') {
+          prioritizedSum += amount;
+          console.log('✅ Including in Prioritized CTB:', {
             name: ctb.name,
-            status: ctb.status,
+            status: status,
+            columnIndex: i - 2,
+            amount: amount
+          });
+        } else if (status === 'Deferred' || status === 'New') {
+          deferredNewSum += amount;
+          hasDeferredNewRecords = true;
+          console.log('📋 Including in Deferred/New:', {
+            name: ctb.name,
+            status: status,
             columnIndex: i - 2,
             amount: amount
           });
         } else {
-          console.log('⏭️ Skipping non-Prioritized CTB:', {
+          console.log('⏭️ Skipping CTB (Canceled or other status):', {
             name: ctb.name,
-            status: ctb.status,
-            amount: amount
+            status: status,
+            amount: amount,
+            reason: 'Not included in any main table row'
           });
         }
       }
       
-      console.log(`📊 Month column ${i - 2} total (Prioritized only):`, sum);
-      ctbRow.forecastColumns[i].amount = sum;
+      console.log(`📊 Month column ${i - 2} totals:`, {
+        prioritized: prioritizedSum,
+        deferredNew: deferredNewSum,
+        hasDeferredNewRecords: hasDeferredNewRecords
+      });
+      
+      // Always update CTB row with prioritized sum
+      ctbRow.forecastColumns[i].amount = prioritizedSum;
+      
+      // Always update Deferred/New row - set to deferredNewSum (which will be 0 if no records)
+      deferredNewRow.forecastColumns[i].amount = deferredNewSum;
+      
+      if (hasDeferredNewRecords) {
+        console.log(`✅ Updated Deferred/New column ${i - 2} to ${deferredNewSum}`);
+      } else {
+        console.log(`✅ Reset Deferred/New column ${i - 2} to 0 (no Deferred/New records)`);
+      }
     }
+    
+    // Update total columns - always update both CTB and Deferred/New
+    ctbRow.forecastColumns[1].amount = this.getRowTotal(ctbRow);
+    deferredNewRow.forecastColumns[1].amount = this.getRowTotal(deferredNewRow);
+    
+    // Check if any Deferred/New values exist to provide informative logging
+    const hasAnyDeferredNew = this.ctbRows.some(ctb => ctb.status === 'Deferred' || ctb.status === 'New');
+    if (hasAnyDeferredNew) {
+      console.log('✅ Updated Deferred/New total');
+    } else {
+      console.log('✅ Reset Deferred/New total to 0 (no Deferred/New records)');
+    }
+    
+    console.log('📊 Updated totals:', {
+      ctbTotal: ctbRow.forecastColumns[1].amount,
+      deferredNewTotal: deferredNewRow.forecastColumns[1].amount
+    });
   }
 
   // Helper method to convert column number to Excel column name (A, B, C, ..., Z, AA, AB, etc.)
@@ -471,6 +827,32 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
 
   // Smart save - only calls endpoints for modified data
   saveData() {
+    // First validate CTB table
+    const validation = this.validateCTBTable();
+    
+    if (!validation.isValid) {
+      const rowNumbers = validation.invalidRows.join(', ');
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: `Please complete the missing CTB Name and Status for row(s): ${rowNumbers}`,
+        life: 5000,
+      });
+      return;
+    }
+
+    // Check for negative remaining capacity before saving
+    const capacityValidation = this.validateRemainingCapacity();
+    if (!capacityValidation.isValid) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Capacity Exceeded',
+        detail: `Cannot save: Negative remaining capacity detected in: ${capacityValidation.negativeMonths.join(', ')}. Please adjust forecasted capacity or CTB allocations.`,
+        life: 8000,
+      });
+      return;
+    }
+
     const hasMainTableChanges = this.changedMainTableCells.size > 0;
     const hasCTBTableChanges = this.changedCTBCells.size > 0;
 
@@ -479,6 +861,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
         severity: 'warn',
         summary: 'No Changes',
         detail: 'No changes to save.',
+        life: 3000,
       });
       return;
     }
@@ -507,6 +890,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
       severity: 'info',
       summary: 'Saving...',
       detail: `Saving changes in ${saveDescription}...`,
+      life: 3000,
     });
 
     // Execute only the necessary save operations
@@ -524,6 +908,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
           severity: 'success',
           summary: 'Success',
           detail: `Successfully saved changes in ${saveDescription}!`,
+          life: 3000,
         });
       },
       error: (error) => {
@@ -532,6 +917,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
           severity: 'error',
           summary: 'Error',
           detail: `Failed to save changes in ${saveDescription}. Please try again.`,
+          life: 3000,
         });
       },
     });
@@ -1018,7 +1404,8 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
     return (
       rowLabel === 'RTB' ||
       rowLabel === 'Capacity Requested by (CTB)' ||
-      rowLabel === 'Remaining Capacity'
+      rowLabel === 'Remaining Capacity' ||
+      rowLabel === 'Deferred/New'
     );
   }
 
@@ -1109,6 +1496,9 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
   public changedMainTableCells: Set<string> = new Set();
   public changedCTBCells: Set<string> = new Set();
 
+  // Toast tracking to prevent multiple capacity warnings
+  private isCapacityWarningShowing: boolean = false;
+
   // Navigation control flag
   private allowNavigation: boolean = false;
 
@@ -1116,7 +1506,8 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
     private http: HttpClient,
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
@@ -1220,6 +1611,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
             severity: 'success',
             summary: 'Saved',
             detail: 'Changes saved successfully before leaving.',
+            life: 3000,
           });
           resolve(true);
         },
@@ -1229,6 +1621,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
             severity: 'error',
             summary: 'Save Failed',
             detail: 'Failed to save changes. Please try again.',
+            life: 3000,
           });
           resolve(false);
         },
@@ -1265,6 +1658,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
           severity: 'success',
           summary: 'Accept Clicked!',
           detail: 'You chose to save and leave - PrimeNG Dialog Working!',
+          life: 3000,
         });
       },
       reject: () => {
@@ -1273,6 +1667,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
           severity: 'warn',
           summary: 'Reject Clicked!',
           detail: 'You chose to leave without saving - PrimeNG Dialog Working!',
+          life: 3000,
         });
       },
     });
@@ -1328,6 +1723,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
             severity: 'success',
             summary: 'Saved',
             detail: 'Changes saved successfully.',
+            life: 3000,
           });
           // Allow navigation after saving
           this.navigateAway();
@@ -1338,6 +1734,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
             severity: 'error',
             summary: 'Save Failed',
             detail: 'Failed to save changes. Navigation cancelled.',
+            life: 3000,
           });
         },
       });
@@ -1544,12 +1941,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
         if (newValue > maxAllowed) {
           const correctedValue = Math.max(0, maxAllowed);
           col.amount = correctedValue;
-          this.messageService.add({
-            severity: 'warn',
-            summary: 'Max Capacity',
-            detail: 'Cannot exceed Remaining Capacity!',
-            life: 10000,
-          });
+          this.showCapacityWarning();
           // Force input to update its display to the corrected value
           setTimeout(() => {
             const input = document.activeElement as HTMLInputElement;
