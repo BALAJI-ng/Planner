@@ -17,15 +17,40 @@
   <div *ngIf="!isLoading">
     <div class="section-header">
       <span class="section-title">Capacity Plan</span>
-      <button
-        pButton
-        type="button"
-        label="Export to Excel"
-        icon="pi pi-file-excel"
-        (click)="exportToExcel()"
-        class="excel-btn"
-        style="margin-bottom: 1rem"
-      ></button>
+      <div class="action-buttons" style="display: flex; gap: 0.5rem">
+        <button
+          pButton
+          type="button"
+          label="Export to Excel"
+          icon="pi pi-file-excel"
+          (click)="exportToExcel()"
+          class="excel-btn"
+          style="margin-bottom: 1rem"
+        ></button>
+        <button
+          pButton
+          type="button"
+          label="Save"
+          icon="pi pi-save"
+          (click)="saveData()"
+          class="p-button-success save-btn"
+          style="margin-bottom: 1rem; margin-right: 0.5rem"
+          [disabled]="
+            changedMainTableCells.size === 0 && changedCTBCells.size === 0
+          "
+        ></button>
+        <button
+          pButton
+          type="button"
+          label="Test Navigation"
+          icon="pi pi-external-link"
+          (click)="navigateToTestPage()"
+          class="p-button-info"
+          style="margin-bottom: 1rem; margin-right: 0.5rem"
+        ></button>
+      </div>
+
+      <!-- disable status "New" and dont allow user to select "New" status when record is submitted or data is retrieved from API -->
     </div>
     <div *ngIf="forecastRows.length > 0">
       <div
@@ -481,4 +506,5 @@
   </div>
 
   <p-toast position="bottom-right" [life]="10000"></p-toast>
+  <p-confirmDialog></p-confirmDialog>
 </div>

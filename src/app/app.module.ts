@@ -6,12 +6,14 @@ import { BrowserModule } from '@angular/platform-browser';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { CapacityPlannerComponent } from './capacity-planner.component';
+import { RedirectTestComponent } from './redirect-test.component';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { ToastModule } from 'primeng/toast';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { MessageService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { MessageService, ConfirmationService } from 'primeng/api';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { StoreModule } from '@ngrx/store';
@@ -21,7 +23,7 @@ import { capacityReducer } from './state/capacity.reducer';
 import { CapacityEffects } from './state/capacity.effects';
 
 @NgModule({
-  declarations: [AppComponent, CapacityPlannerComponent],
+  declarations: [AppComponent, CapacityPlannerComponent, RedirectTestComponent],
   imports: [
     BrowserModule,
     AppRoutingModule,
@@ -31,6 +33,7 @@ import { CapacityEffects } from './state/capacity.effects';
     ToastModule,
     DropdownModule,
     ProgressSpinnerModule,
+    ConfirmDialogModule,
     BrowserAnimationsModule,
     FormsModule,
     HttpClientModule,
@@ -38,7 +41,7 @@ import { CapacityEffects } from './state/capacity.effects';
     EffectsModule.forRoot([CapacityEffects]),
     StoreDevtoolsModule.instrument({ maxAge: 25 }),
   ],
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
   bootstrap: [AppComponent],
 })
 export class AppModule {}

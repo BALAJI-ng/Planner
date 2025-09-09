@@ -12,6 +12,20 @@
 </header>
 
 <main>
+  <nav
+    class="page-nav"
+    style="padding: 20px; background-color: #f8f9fa; margin-bottom: 20px"
+  >
+    <a
+      routerLink="/"
+      style="margin-right: 15px; color: #007bff; text-decoration: none"
+      >Capacity Planner</a
+    >
+    <a routerLink="/redirect-test" style="color: #007bff; text-decoration: none"
+      >Redirect Test Page</a
+    >
+  </nav>
+
   <h1 class="page-title">Capacity Planner</h1>
-  <app-capacity-planner></app-capacity-planner>
+  <router-outlet></router-outlet>
 </main>

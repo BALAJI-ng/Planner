@@ -6,12 +6,16 @@ import {
   ViewChild,
   AfterViewInit,
   ElementRef,
+  HostListener,
 } from '@angular/core';
 import { Table } from 'primeng/table';
 import { HttpClient } from '@angular/common/http';
-import { MessageService } from 'primeng/api';
+import { MessageService, ConfirmationService } from 'primeng/api';
+import { Router } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { CanComponentDeactivate } from './unsaved-changes.guard';
 
 export interface ForecastColumn {
   id: number;
@@ -32,7 +36,7 @@ export interface ForecastRow {
   templateUrl: './capacity-planner.component.html',
   styleUrls: ['./capacity-planner.component.scss'],
 })
-export class CapacityPlannerComponent implements OnInit, AfterViewInit {
+export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanComponentDeactivate {
   // Reference to CTB table for paginator control
   @ViewChild('ctbTableRef') ctbTableRef?: Table;
   getCTBMaxAllowed(ctbIdx: number, colIdx: number): number {
@@ -255,6 +259,13 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
   // Removed stray code from previous patch attempts
 
   onCTBAmountChange(ctbIdx: number, colIdx: number, value: number) {
+    console.log('📋 CTB Cell value changed:', {
+      ctbIndex: ctbIdx,
+      columnIndex: colIdx,
+      newValue: value,
+      oldValue: this.ctbRows[ctbIdx]?.columns[colIdx]?.amount
+    });
+    
     // Restrict negative values
     let inputValue = value < 0 ? 0 : value;
     // Get Forecasted Capacity and RTB for this month
@@ -306,6 +317,17 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     // Always set the amount to the validated value
     this.ctbRows[ctbIdx].columns[colIdx].amount = newValue;
 
+    // Track this cell change for saving
+    const cellKey = `ctb_${ctbIdx}_${colIdx}`;
+    this.changedCTBCells.add(cellKey);
+    
+    console.log('✅ CTB Cell change tracked:', {
+      cellKey: cellKey,
+      totalCTBChanges: this.changedCTBCells.size,
+      totalMainChanges: this.changedMainTableCells.size,
+      hasUnsavedChanges: this.hasUnsavedChanges()
+    });
+
     // If the value was corrected, force update the input field immediately
     if (newValue !== inputValue) {
       setTimeout(() => {
@@ -351,6 +373,173 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
       columnNumber = Math.floor(columnNumber / 26);
     }
     return result;
+  }
+
+  // Smart save - only calls endpoints for modified data
+  saveData() {
+    const hasMainTableChanges = this.changedMainTableCells.size > 0;
+    const hasCTBTableChanges = this.changedCTBCells.size > 0;
+
+    if (!hasMainTableChanges && !hasCTBTableChanges) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'No Changes',
+        detail: 'No changes to save.',
+      });
+      return;
+    }
+
+    // Determine which endpoints to call
+    const saveOperations: any[] = [];
+    let saveDescription = '';
+
+    if (hasMainTableChanges && hasCTBTableChanges) {
+      // Both tables have changes - call both endpoints
+      saveOperations.push(this.saveMainTableData());
+      saveOperations.push(this.saveCTBTableData());
+      saveDescription = 'both main and CTB tables';
+    } else if (hasMainTableChanges) {
+      // Only main table has changes - call main table endpoint only
+      saveOperations.push(this.saveMainTableData());
+      saveDescription = 'main table';
+    } else if (hasCTBTableChanges) {
+      // Only CTB table has changes - call CTB table endpoint only
+      saveOperations.push(this.saveCTBTableData());
+      saveDescription = 'CTB table';
+    }
+
+    // Show loading message with specific description
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Saving...',
+      detail: `Saving changes in ${saveDescription}...`,
+    });
+
+    // Execute only the necessary save operations
+    forkJoin(saveOperations).subscribe({
+      next: (responses) => {
+        // Clear change tracking after successful save
+        if (hasMainTableChanges) {
+          this.changedMainTableCells.clear();
+        }
+        if (hasCTBTableChanges) {
+          this.changedCTBCells.clear();
+        }
+
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: `Successfully saved changes in ${saveDescription}!`,
+        });
+      },
+      error: (error) => {
+        console.error('Error saving data:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: `Failed to save changes in ${saveDescription}. Please try again.`,
+        });
+      },
+    });
+  }
+
+  // Save Main Table (Top Table) Data
+  saveMainTableData() {
+    const mainTableApiCalls: any[] = [];
+
+    this.forecastRows.forEach((row: any, rowIndex: number) => {
+      if (row.forecastColumns) {
+        row.forecastColumns.forEach((col: any, colIndex: number) => {
+          const cellKey = `main_${rowIndex}_${colIndex}`;
+
+          // Only process if this cell was changed
+          if (
+            this.changedMainTableCells.has(cellKey) &&
+            col.month != null &&
+            col.year != null &&
+            col.amount != null
+          ) {
+            const mainTablePayload = {
+              id: col.id || 0,
+              transformationUnitId: col.transformationUnitId || 679,
+              amount: col.amount,
+              month: col.month,
+              year: col.year,
+            };
+
+            // Add API call for main table with dedicated endpoint
+            mainTableApiCalls.push(
+              this.http.post(
+                'http://localhost:3001/saveMainTableData',
+                mainTablePayload
+              )
+            );
+          }
+        });
+      }
+    });
+
+    // Return forkJoin of all main table API calls
+    return forkJoin(mainTableApiCalls);
+  }
+
+  // Save CTB Table (Bottom Table) Data
+  saveCTBTableData() {
+    const ctbTableApiCalls: any[] = [];
+
+    this.ctbRows.forEach((ctb: any, ctbIndex: number) => {
+      if (ctb.columns) {
+        ctb.columns.forEach((col: any, colIndex: number) => {
+          const cellKey = `ctb_${ctbIndex}_${colIndex}`;
+
+          // Only process if this cell was changed
+          if (this.changedCTBCells.has(cellKey)) {
+            const monthYearData = this.getMonthYearForCTBColumn(colIndex);
+
+            if (col.amount != null && monthYearData) {
+              const ctbTablePayload = {
+                id: col.id || 0,
+                transformationUnitId: col.transformationUnitId || 679,
+                bcId: ctb.selectedCTBOption?.bcId || ctb.bcId || 29,
+                amount: col.amount,
+                month: monthYearData.month,
+                year: monthYearData.year,
+                transformationUnitForecastDetailId:
+                  col.transformationUnitForecastDetailId || 740,
+              };
+
+              // Add API call for CTB table with dedicated endpoint
+              ctbTableApiCalls.push(
+                this.http.post(
+                  'http://localhost:3001/saveCTBTableData',
+                  ctbTablePayload
+                )
+              );
+            }
+          }
+        });
+      }
+    });
+
+    // Return forkJoin of all CTB table API calls
+    return forkJoin(ctbTableApiCalls);
+  }
+
+  // Helper method to get month/year for CTB column
+  getMonthYearForCTBColumn(
+    colIndex: number
+  ): { month: number; year: number } | null {
+    if (this.forecastRows.length > 0) {
+      // Get month/year from the main table structure
+      const monthCol = this.forecastRows[0].forecastColumns[colIndex + 2]; // +2 to skip label and total columns
+      if (monthCol && monthCol.month != null && monthCol.year != null) {
+        return {
+          month: monthCol.month,
+          year: monthCol.year,
+        };
+      }
+    }
+    return null;
   }
 
   exportToExcel() {
@@ -671,6 +860,18 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
       saveAs(new Blob([buffer]), 'capacity_plan.xlsx');
     });
   }
+
+  // Navigation method for testing unsaved changes protection
+  navigateToTestPage(): void {
+    console.log('🚀 Attempting navigation to test page');
+    console.log('📊 Current unsaved changes status:', this.hasUnsavedChanges());
+    console.log('📝 Main table changes:', this.changedMainTableCells.size);
+    console.log('📋 CTB changes:', this.changedCTBCells.size);
+    console.log('🔒 Allow navigation flag:', this.allowNavigation);
+    
+    this.router.navigate(['/redirect-test']);
+  }
+
   isInputDisabled(
     row: ForecastRow,
     col: ForecastColumn,
@@ -810,18 +1011,259 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
   columns: string[] = [];
   isLoading: boolean = true;
 
+  // Change tracking for saving only modified cells
+  public changedMainTableCells: Set<string> = new Set();
+  public changedCTBCells: Set<string> = new Set();
+
+  // Navigation control flag
+  private allowNavigation: boolean = false;
+
   constructor(
     private http: HttpClient,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private confirmationService: ConfirmationService,
+    private router: Router
   ) {}
 
   ngOnInit() {
     this.isLoading = true;
 
+    // Initialize history state for popstate handling
+    window.history.replaceState(null, '', window.location.href);
+
     // Add 3-second delay for testing
     setTimeout(() => {
       this.loadData();
     }, 3000);
+  }
+
+  // Check if there are unsaved changes
+  hasUnsavedChanges(): boolean {
+    return this.changedMainTableCells.size > 0 || this.changedCTBCells.size > 0;
+  }
+
+  // Handle browser refresh/close attempts - must show native dialog for security
+  @HostListener('window:beforeunload', ['$event'])
+  unloadNotification($event: any): void {
+    if (this.hasUnsavedChanges()) {
+      // For beforeunload, we must use native dialog due to browser security
+      // This is the only way to prevent page refresh/close
+      const confirmationMessage =
+        'You have unsaved changes that will be lost. Are you sure you want to leave?';
+      $event.returnValue = confirmationMessage;
+    }
+  }
+
+  // Handle browser history navigation (back/forward buttons)
+  @HostListener('window:popstate', ['$event'])
+  onPopState($event: any): void {
+    if (!this.allowNavigation && this.hasUnsavedChanges()) {
+      // Push current state back to prevent navigation
+      window.history.pushState(null, '', window.location.href);
+
+      // Show PrimeNG dialog for browser navigation
+      this.showNavigationConfirmDialog();
+    }
+  }
+
+  // Handle Angular router navigation attempts
+  canDeactivate(): boolean | Promise<boolean> {
+    console.log('🛡️ canDeactivate called - checking unsaved changes');
+    console.log('📊 Has unsaved changes:', this.hasUnsavedChanges());
+    console.log('📝 Main table changes:', this.changedMainTableCells.size);
+    console.log('📋 CTB changes:', this.changedCTBCells.size);
+    
+    if (this.hasUnsavedChanges()) {
+      console.log('⚠️ Showing confirmation dialog for navigation');
+      return new Promise((resolve) => {
+        this.confirmationService.confirm({
+          message:
+            'You have unsaved changes that will be lost. Do you want to save before leaving?',
+          header: 'Unsaved Changes',
+          icon: 'pi pi-exclamation-triangle',
+          acceptButtonStyleClass: 'p-button-success',
+          rejectButtonStyleClass: 'p-button-danger',
+          acceptLabel: 'Save & Leave',
+          rejectLabel: 'Leave Without Saving',
+          accept: () => {
+            console.log('✅ User chose to save and leave');
+            // Save data and then allow navigation
+            this.saveDataAndLeave(resolve);
+          },
+          reject: () => {
+            console.log('❌ User chose to leave without saving');
+            // Leave without saving
+            this.clearChangeTracking();
+            resolve(true);
+          },
+        });
+      });
+    }
+    console.log('✅ No unsaved changes - allowing navigation');
+    return true;
+  }
+
+  // Save data and then allow navigation
+  private saveDataAndLeave(resolve: (value: boolean) => void): void {
+    const hasMainTableChanges = this.changedMainTableCells.size > 0;
+    const hasCTBTableChanges = this.changedCTBCells.size > 0;
+
+    const saveOperations: any[] = [];
+
+    if (hasMainTableChanges) {
+      saveOperations.push(this.saveMainTableData());
+    }
+
+    if (hasCTBTableChanges) {
+      saveOperations.push(this.saveCTBTableData());
+    }
+
+    if (saveOperations.length > 0) {
+      forkJoin(saveOperations).subscribe({
+        next: (responses) => {
+          this.clearChangeTracking();
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Saved',
+            detail: 'Changes saved successfully before leaving.',
+          });
+          resolve(true);
+        },
+        error: (error) => {
+          console.error('Error saving data before leaving:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Save Failed',
+            detail: 'Failed to save changes. Please try again.',
+          });
+          resolve(false);
+        },
+      });
+    } else {
+      resolve(true);
+    }
+  }
+
+  // Clear all change tracking
+  private clearChangeTracking(): void {
+    this.changedMainTableCells.clear();
+    this.changedCTBCells.clear();
+    this.allowNavigation = false; // Reset navigation flag
+  }
+
+  // Method to manually show the confirm dialog for testing
+  showConfirmDialog(): void {
+    console.log('🔥 SHOWING PRIMENG CONFIRM DIALOG 🔥');
+    console.log('ConfirmationService:', this.confirmationService);
+
+    this.confirmationService.confirm({
+      message:
+        '🚨 This is the PrimeNG ConfirmDialog! 🚨<br/>You have unsaved changes that will be lost. Do you want to save before leaving?',
+      header: '🎯 PrimeNG Dialog Test',
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-success',
+      rejectButtonStyleClass: 'p-button-danger',
+      acceptLabel: 'Save & Leave',
+      rejectLabel: 'Leave Without Saving',
+      accept: () => {
+        console.log('✅ User clicked ACCEPT');
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Accept Clicked!',
+          detail: 'You chose to save and leave - PrimeNG Dialog Working!',
+        });
+      },
+      reject: () => {
+        console.log('❌ User clicked REJECT');
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Reject Clicked!',
+          detail: 'You chose to leave without saving - PrimeNG Dialog Working!',
+        });
+      },
+    });
+
+    console.log('📝 ConfirmDialog.confirm() method called');
+  }
+
+  // Method to show PrimeNG dialog for browser navigation
+  showNavigationConfirmDialog(): void {
+    console.log('🌐 SHOWING NAVIGATION CONFIRM DIALOG 🌐');
+
+    this.confirmationService.confirm({
+      message:
+        'You have unsaved changes that will be lost. Do you want to save before leaving?',
+      header: 'Unsaved Changes - Navigation',
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-success',
+      rejectButtonStyleClass: 'p-button-danger',
+      acceptLabel: 'Save & Leave',
+      rejectLabel: 'Leave Without Saving',
+      accept: () => {
+        console.log('✅ User chose to save and leave via navigation');
+        this.saveDataAndNavigate();
+      },
+      reject: () => {
+        console.log('❌ User chose to leave without saving via navigation');
+        this.clearChangeTracking();
+        this.navigateAway();
+      },
+    });
+  }
+
+  // Save data and then navigate away
+  private saveDataAndNavigate(): void {
+    const hasMainTableChanges = this.changedMainTableCells.size > 0;
+    const hasCTBTableChanges = this.changedCTBCells.size > 0;
+
+    const saveOperations: any[] = [];
+
+    if (hasMainTableChanges) {
+      saveOperations.push(this.saveMainTableData());
+    }
+
+    if (hasCTBTableChanges) {
+      saveOperations.push(this.saveCTBTableData());
+    }
+
+    if (saveOperations.length > 0) {
+      forkJoin(saveOperations).subscribe({
+        next: (responses) => {
+          this.clearChangeTracking();
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Saved',
+            detail: 'Changes saved successfully.',
+          });
+          // Allow navigation after saving
+          this.navigateAway();
+        },
+        error: (error) => {
+          console.error('Error saving data before navigation:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Save Failed',
+            detail: 'Failed to save changes. Navigation cancelled.',
+          });
+        },
+      });
+    } else {
+      this.navigateAway();
+    }
+  }
+
+  // Navigate away from the page
+  private navigateAway(): void {
+    // Set flag to allow navigation
+    this.allowNavigation = true;
+
+    // Clear change tracking
+    this.clearChangeTracking();
+
+    // Use a small timeout to ensure the flag is set before navigation
+    setTimeout(() => {
+      window.history.back();
+    }, 10);
   }
 
   private loadData() {
@@ -938,6 +1380,13 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
   }
 
   onAmountChange(row: any, col: any, i: number, newValue: number) {
+    console.log('📝 Cell value changed:', {
+      rowLabel: row.forecastColumns[0].rowLabel,
+      columnIndex: i,
+      newValue: newValue,
+      oldValue: col.amount
+    });
+    
     // Prevent negative values
     if (newValue < 0) {
       col.amount = 0;
@@ -1007,5 +1456,16 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit {
     }
 
     col.amount = newValue;
+
+    // Track this cell change for saving
+    const rowIndex = this.forecastRows.indexOf(row);
+    const cellKey = `main_${rowIndex}_${i}`;
+    this.changedMainTableCells.add(cellKey);
+    
+    console.log('✅ Cell change tracked:', {
+      cellKey: cellKey,
+      totalChanges: this.changedMainTableCells.size,
+      hasUnsavedChanges: this.hasUnsavedChanges()
+    });
   }
 }
