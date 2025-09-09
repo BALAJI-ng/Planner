@@ -787,3 +787,26 @@ td.sticky-col, td.sticky-status, td.sticky-total {
   width: 100vw !important;
   min-width: 900px;
 }
+
+/* Style for disabled dropdown options */
+:host ::ng-deep .p-dropdown-panel .p-dropdown-item.p-disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  background-color: #f8f9fa !important;
+  color: #6c757d !important;
+  pointer-events: none !important;
+}
+
+/* Additional styling for better visibility of disabled state */
+:host ::ng-deep .ctb-dropdown-panel .p-dropdown-item.p-disabled {
+  opacity: 0.4 !important;
+  text-decoration: line-through !important;
+  font-style: italic !important;
+  background-color: #e9ecef !important;
+}
+
+/* Ensure disabled items are clearly distinguishable */
+:host ::ng-deep .p-dropdown-panel .p-dropdown-item.p-disabled:hover {
+  background-color: #e9ecef !important;
+  color: #6c757d !important;
+}

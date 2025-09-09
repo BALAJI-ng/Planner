@@ -57,7 +57,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
         (rtbRow.forecastColumns[colIdx + 2].amount || 0);
       let sumOtherRows = 0;
       for (let i = 0; i < this.ctbRows.length; i++) {
-        if (i !== ctbIdx) {
+        if (i !== ctbIdx && this.ctbRows[i].status === 'Prioritized') {
           sumOtherRows += this.ctbRows[i].columns[colIdx].amount || 0;
         }
       }
@@ -166,6 +166,73 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
     { label: 'Canceled', value: 'Canceled' },
     { label: 'Prioritized', value: 'Prioritized' },
   ];
+
+  // Get status options with disabled state for submitted records
+  getStatusOptionsForCTB(ctb: any): any[] {
+    // Return the base options array - we'll handle disabled state differently
+    console.log('📋 getStatusOptionsForCTB called for:', {
+      ctbName: ctb.name,
+      currentStatus: ctb.status,
+      statusType: typeof ctb.status,
+      isNewRow: ctb.isNewRow,
+      fullCTB: ctb
+    });
+    
+    return this.ctbStatusOptions;
+  }
+
+  // Check if a specific option should be disabled for this CTB record
+  isStatusOptionDisabled(ctb: any, optionValue: string): boolean {
+    const isExistingRecord = !ctb.isNewRow;
+    const shouldDisable = isExistingRecord && optionValue === 'New';
+    
+    console.log('🔒 Checking if option disabled:', {
+      ctbName: ctb.name,
+      optionValue: optionValue,
+      isExistingRecord: isExistingRecord,
+      shouldDisable: shouldDisable
+    });
+    
+    return shouldDisable;
+  }
+
+  // Handle status change with validation
+  onStatusChange(ctb: any, event: any): void {
+    const selectedValue = event.value;
+    const oldStatus = ctb.status;
+    
+    console.log('📝 Status change:', {
+      ctbName: ctb.name,
+      oldStatus: oldStatus,
+      newStatus: selectedValue,
+      isNewRow: ctb.isNewRow
+    });
+    
+    // Update the status
+    ctb.status = selectedValue;
+    
+    // Recalculate CTB totals in main table since status affects calculation
+    this.updateCTBRow();
+    
+    console.log('✅ Status change successful and CTB totals recalculated');
+    
+    // Show message about prioritization effect
+    if (selectedValue === 'Prioritized' && oldStatus !== 'Prioritized') {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'Status Updated',
+        detail: 'Record marked as Prioritized - now included in main table calculations.',
+        life: 5000,
+      });
+    } else if (oldStatus === 'Prioritized' && selectedValue !== 'Prioritized') {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'Status Updated',
+        detail: 'Record no longer Prioritized - removed from main table calculations.',
+        life: 5000,
+      });
+    }
+  }
 
   // CTB Name dropdown options for new rows
   ctbNameOptions: Array<{
@@ -285,11 +352,15 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
       const maxValue =
         (forecastedRow.forecastColumns[colIdx + 2].amount || 0) -
         (rtbRow.forecastColumns[colIdx + 2].amount || 0);
-      // Calculate sum of all CTB rows for this month except the current row
+      // Calculate sum of only "Prioritized" CTB rows for this month except the current row
       let sumOtherRows = 0;
       for (let i = 0; i < this.ctbRows.length; i++) {
         if (i !== ctbIdx) {
-          sumOtherRows += this.ctbRows[i].columns[colIdx].amount || 0;
+          // Only include other CTB rows that are "Prioritized"
+          const otherCtb = this.ctbRows[i];
+          if (otherCtb.status === 'Prioritized') {
+            sumOtherRows += otherCtb.columns[colIdx].amount || 0;
+          }
         }
       }
       // Calculate the max allowed for this input
@@ -351,15 +422,38 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
       (r) => r.forecastColumns[0].rowLabel === 'Capacity Requested by (CTB)'
     );
     if (!ctbRow) return;
-    // For each month column, sum all CTB rows and update the top table
+    
+    console.log('🔄 Updating CTB row - filtering for Prioritized status only');
+    
+    // For each month column, sum only "Prioritized" CTB rows and update the top table
     for (let i = 2; i < ctbRow.forecastColumns.length; i++) {
       let sum = 0;
+      
+      // Only include CTB records with "Prioritized" status
       for (const ctb of this.ctbRows) {
-        sum +=
-          typeof ctb.columns[i - 2].amount === 'number'
-            ? ctb.columns[i - 2].amount || 0
-            : 0;
+        const isPrioritized = ctb.status === 'Prioritized';
+        const amount = typeof ctb.columns[i - 2].amount === 'number' 
+          ? ctb.columns[i - 2].amount || 0 
+          : 0;
+          
+        if (isPrioritized) {
+          sum += amount;
+          console.log('✅ Including Prioritized CTB:', {
+            name: ctb.name,
+            status: ctb.status,
+            columnIndex: i - 2,
+            amount: amount
+          });
+        } else {
+          console.log('⏭️ Skipping non-Prioritized CTB:', {
+            name: ctb.name,
+            status: ctb.status,
+            amount: amount
+          });
+        }
       }
+      
+      console.log(`📊 Month column ${i - 2} total (Prioritized only):`, sum);
       ctbRow.forecastColumns[i].amount = sum;
     }
   }
@@ -1302,13 +1396,26 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
           const statusCol = forecastColumns.find(
             (col: any) => col.columnLabel === 'Status'
           );
-          // Find matching status option object
+          
+          // Get the status value from the status column
           const statusValue = statusCol?.status || '';
-          const statusOption =
-            this.ctbStatusOptions?.find(
-              (opt: any) =>
-                opt.value === statusValue || opt.label === statusValue
-            ) || null;
+          console.log('🔍 Loading CTB row:', {
+            name: name,
+            statusValue: statusValue,
+            statusCol: statusCol,
+            forecastColumns: forecastColumns
+          });
+          
+          // Find matching status option object (need to match by value, not create new object)
+          const statusOption = statusValue ? 
+            this.ctbStatusOptions?.find((opt: any) => opt.value === statusValue) || statusValue
+            : null;
+            
+          console.log('📋 Status binding result:', {
+            statusValue: statusValue,
+            statusOption: statusOption,
+            availableOptions: this.ctbStatusOptions
+          });
           const totalCol = forecastColumns.find(
             (col: any) => col.columnLabel === 'Total'
           );
@@ -1326,7 +1433,7 @@ export class CapacityPlannerComponent implements OnInit, AfterViewInit, CanCompo
               : [];
           return {
             name,
-            status: statusOption,
+            status: statusValue, // Store the actual status value, not the option object
             columns: monthAmounts,
             isNewRow: false, // Existing rows are not new
             selectedCTBOption: null,

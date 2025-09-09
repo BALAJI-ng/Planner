@@ -2810,7 +2810,7 @@
           "bcId": 2,
           "statusId": 360,
           "statusCode": null,
-          "status": "New",
+          "status": "Prioritized",
           "cellCss": "wells-border-bottom-red",
           "isReadOnly": true,
           "isCommitmentRow": false,

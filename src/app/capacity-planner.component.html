@@ -13,7 +13,8 @@
     </p>
   </div>
 
-  <!-- Main Content (only show when not loading) -->
+  <!-- Main Content (only s                      (onChange)="onStatusChange(ctb, $event)"
+                    ></p-dropdown> loading) -->
   <div *ngIf="!isLoading">
     <div class="section-header">
       <span class="section-title">Capacity Plan</span>
@@ -436,6 +437,7 @@
                       [options]="ctbStatusOptions"
                       [(ngModel)]="ctb.status"
                       optionLabel="label"
+                      optionValue="value"
                       placeholder="Status"
                       [appendTo]="'body'"
                       [autoZIndex]="true"
@@ -444,7 +446,18 @@
                       [style]="{ width: '130px', 'max-width': '130px' }"
                       styleClass="status-dropdown"
                       scrollHeight="200px"
-                    ></p-dropdown>
+                      (onChange)="onStatusChange(ctb, $event)"
+                    >
+                      <ng-template pTemplate="item" let-option>
+                        <span 
+                          [class.disabled-option]="isStatusOptionDisabled(ctb, option.value)"
+                          [style.opacity]="isStatusOptionDisabled(ctb, option.value) ? '0.5' : '1'"
+                          [style.text-decoration]="isStatusOptionDisabled(ctb, option.value) ? 'line-through' : 'none'"
+                          [style.color]="isStatusOptionDisabled(ctb, option.value) ? '#6c757d' : 'inherit'">
+                          {{ option.label }}
+                        </span>
+                      </ng-template>
+                    </p-dropdown>
                   </td>
                   <td
                     class="sticky-total ctb-sticky"
